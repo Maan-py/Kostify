@@ -1,0 +1,22 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Wajib
+    avoid_print: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    use_key_in_widget_constructors: false  # dinonaktifkan, banyak private widget
+    
+    # Dinonaktifkan agar tidak mengganggu pengembangan
+    avoid_unnecessary_containers: false
+    sized_box_for_whitespace: false
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    # Turunkan severity beberapa warning agar tidak noise
+    deprecated_member_use: ignore
+    invalid_annotation_target: ignore
