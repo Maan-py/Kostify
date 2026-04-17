@@ -57,7 +57,10 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   // ─── OCR KTP ──────────────────────────────────────────────────────────────
 
   Future<void> _scanKTP() async {
-    setState(() { _isScanning = true; _ocrError = null; });
+    setState(() {
+      _isScanning = true;
+      _ocrError = null;
+    });
 
     try {
       final picked = await _picker.pickImage(
@@ -95,12 +98,17 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       } finally {
         await recognizer.close();
         // Hapus file temp setelah diproses
-        try { await tempFile.delete(); } catch (_) {}
-        try { await File(picked.path).delete(); } catch (_) {}
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+        try {
+          await File(picked.path).delete();
+        } catch (_) {}
       }
     } catch (e) {
       setState(() {
-        _ocrError = 'Gagal membaca KTP. Pastikan foto jelas dan cukup cahaya. Isi manual jika perlu.';
+        _ocrError =
+            'Gagal membaca KTP. Pastikan foto jelas dan cukup cahaya. Isi manual jika perlu.';
       });
     } finally {
       setState(() => _isScanning = false);
@@ -109,7 +117,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   void _parseKTPText(String rawText) {
     // Parsing sederhana berdasarkan kata kunci KTP Indonesia
-    final lines = rawText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    final lines = rawText
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
     final fullText = rawText.toUpperCase();
 
     String nik = '';
@@ -139,7 +151,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       // Nama: baris setelah label "NAMA"
       if (nama.isEmpty && lineUpper.contains('NAMA')) {
-        final afterNama = line.replaceAll(RegExp(r'NAMA\s*[:\-]?\s*', caseSensitive: false), '').trim();
+        final afterNama = line
+            .replaceAll(RegExp(r'NAMA\s*[:\-]?\s*', caseSensitive: false), '')
+            .trim();
         if (afterNama.length >= 3) {
           nama = _toTitleCase(afterNama);
         } else if (i + 1 < lines.length) {
@@ -149,7 +163,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       // Alamat: baris setelah label "ALAMAT"
       if (alamat.isEmpty && lineUpper.contains('ALAMAT')) {
-        final afterAlamat = line.replaceAll(RegExp(r'ALAMAT\s*[:\-]?\s*', caseSensitive: false), '').trim();
+        final afterAlamat = line
+            .replaceAll(RegExp(r'ALAMAT\s*[:\-]?\s*', caseSensitive: false), '')
+            .trim();
         if (afterAlamat.length >= 3) {
           alamat = afterAlamat;
         } else if (i + 1 < lines.length) {
@@ -170,7 +186,10 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         anyFilled = true;
         // Auto-generate username dari nama (ambil kata pertama, lowercase)
         if (_usernameCtrl.text.isEmpty) {
-          final firstWord = nama.split(' ').first.toLowerCase()
+          final firstWord = nama
+              .split(' ')
+              .first
+              .toLowerCase()
               .replaceAll(RegExp(r'[^a-z0-9_]'), '');
           _usernameCtrl.text = firstWord;
         }
@@ -180,17 +199,20 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         anyFilled = true;
       }
       if (!anyFilled) {
-        _ocrError = 'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
+        _ocrError =
+            'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
       }
     });
 
     if (anyFilled && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Data KTP berhasil diekstrak! Periksa dan lengkapi form.'),
+          content: const Text(
+              'Data KTP berhasil diekstrak! Periksa dan lengkapi form.'),
           backgroundColor: const Color(0xFF1BC0BA),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -214,7 +236,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final hargaStr = _hargaSewaCtrl.text.trim().replaceAll('.', '').replaceAll(',', '');
+      final hargaStr =
+          _hargaSewaCtrl.text.trim().replaceAll('.', '').replaceAll(',', '');
       final harga = int.tryParse(hargaStr) ?? 0;
 
       final tanggalMasuk = DateTime.now().toIso8601String().split('T').first;
@@ -229,7 +252,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         alamat: _alamatCtrl.text.trim(),
         nomorKamar: _nomorKamarCtrl.text.trim(),
         hargaSewa: harga,
-        telepon: _teleponCtrl.text.trim().isNotEmpty ? _teleponCtrl.text.trim() : null,
+        telepon: _teleponCtrl.text.trim().isNotEmpty
+            ? _teleponCtrl.text.trim()
+            : null,
         tanggalMasuk: tanggalMasuk,
         createdAt: DateTime.now(),
       );
@@ -242,7 +267,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             content: Text('Akun ${user.namaLengkap} berhasil dibuat!'),
             backgroundColor: const Color(0xFF1BC0BA),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -255,7 +281,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             content: Text(e.toString().replaceFirst('Exception: ', '')),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -272,7 +299,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Tambah Penghuni', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Tambah Penghuni',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Color(0xFF8095E4)),
@@ -285,7 +313,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Scan KTP Section ──
-              _SectionHeader(title: 'Scan KTP (Opsional)', icon: Icons.document_scanner_rounded),
+              _SectionHeader(
+                  title: 'Scan KTP (Opsional)',
+                  icon: Icons.document_scanner_rounded),
               const SizedBox(height: 10),
               _KTPScanCard(
                 isScanning: _isScanning,
@@ -295,7 +325,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               const SizedBox(height: 24),
 
               // ── Data Identitas ──
-              _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
+              _SectionHeader(
+                  title: 'Data Identitas', icon: Icons.badge_rounded),
               const SizedBox(height: 12),
               _FormField(
                 controller: _namaCtrl,
@@ -304,7 +335,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 icon: Icons.person_outline_rounded,
                 maxLength: AppConstants.MAX_NAME_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_NAME_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_NAME_LENGTH),
                   FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
                 ],
                 validator: AppValidators.validateNamaLengkap,
@@ -385,7 +417,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               const SizedBox(height: 24),
 
               // ── Akun Login ──
-              _SectionHeader(title: 'Akun Login', icon: Icons.lock_outline_rounded),
+              _SectionHeader(
+                  title: 'Akun Login', icon: Icons.lock_outline_rounded),
               const SizedBox(height: 12),
               _FormField(
                 controller: _usernameCtrl,
@@ -396,7 +429,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'\s')),
                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_USERNAME_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_USERNAME_LENGTH),
                 ],
                 validator: AppValidators.validateUsername,
               ),
@@ -407,7 +441,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 obscureText: _obscurePassword,
                 maxLength: AppConstants.MAX_PASSWORD_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_PASSWORD_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_PASSWORD_LENGTH),
                 ],
                 validator: AppValidators.validatePassword,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
@@ -415,22 +450,36 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                   labelText: 'Password Awal *',
                   hintText: 'Min. 6 karakter',
                   counterText: '',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF8095E4)),
+                  prefixIcon: const Icon(Icons.lock_outline_rounded,
+                      size: 20, color: Color(0xFF8095E4)),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 20,
                       color: const Color(0xFF6B7280),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
-                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE53935))),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF8095E4), width: 1.5)),
+                  errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE53935))),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
               const SizedBox(height: 8),
@@ -450,15 +499,21 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isSaving ? null : _saveTenant,
                   icon: _isSaving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.person_add_rounded, size: 20),
                   label: Text(_isSaving ? 'Menyimpan...' : 'Buat Akun Penyewa'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8095E4),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    textStyle: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
               ),
@@ -478,7 +533,8 @@ class _KTPScanCard extends StatelessWidget {
   final String? ocrError;
   final VoidCallback onScan;
 
-  const _KTPScanCard({required this.isScanning, this.ocrError, required this.onScan});
+  const _KTPScanCard(
+      {required this.isScanning, this.ocrError, required this.onScan});
 
   @override
   Widget build(BuildContext context) {
@@ -488,7 +544,9 @@ class _KTPScanCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: ocrError != null ? Colors.orange.shade300 : const Color(0xFFE5E7EB),
+          color: ocrError != null
+              ? Colors.orange.shade300
+              : const Color(0xFFE5E7EB),
         ),
       ),
       child: Column(
@@ -496,12 +554,14 @@ class _KTPScanCard extends StatelessWidget {
           if (ocrError != null) ...[
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 18),
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange.shade600, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     ocrError!,
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.orange.shade800),
                   ),
                 ),
               ],
@@ -516,7 +576,8 @@ class _KTPScanCard extends StatelessWidget {
                   color: const Color(0xFF8095E4).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.credit_card_rounded, color: Color(0xFF8095E4), size: 28),
+                child: const Icon(Icons.credit_card_rounded,
+                    color: Color(0xFF8095E4), size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -524,11 +585,15 @@ class _KTPScanCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Scan KTP Penyewa',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF1A1A2E))),
                     const SizedBox(height: 2),
                     Text(
                       'Foto KTP akan diproses OCR dan dihapus otomatis setelah ekstraksi.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
@@ -542,11 +607,16 @@ class _KTPScanCard extends StatelessWidget {
                     backgroundColor: const Color(0xFF8095E4),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
                   child: isScanning
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Scan', style: TextStyle(fontSize: 13)),
                 ),
               ),
@@ -622,11 +692,20 @@ class _FormField extends StatelessWidget {
         prefixIcon: Icon(icon, size: 20, color: const Color(0xFF8095E4)),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE53935))),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE53935))),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: 16, vertical: maxLines > 1 ? 12 : 14),
       ),
     );
   }

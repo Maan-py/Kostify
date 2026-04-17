@@ -97,9 +97,7 @@ class DatabaseHelper {
   }
 
   Future<void> _insertDefaultAdmin(Database db) async {
-    final passwordHash = sha256
-        .convert(utf8.encode('admin123'))
-        .toString();
+    final passwordHash = sha256.convert(utf8.encode('admin123')).toString();
 
     await db.insert('users', {
       'username': AppConstants.ADMIN_USERNAME,
@@ -119,7 +117,8 @@ class DatabaseHelper {
 
   // ─── USER CRUD ─────────────────────────────────────────────────────────────
 
-  Future<UserModel?> getUserByCredentials(String username, String password) async {
+  Future<UserModel?> getUserByCredentials(
+      String username, String password) async {
     try {
       final db = await database;
       final hash = hashPassword(password);
@@ -141,7 +140,8 @@ class DatabaseHelper {
   Future<UserModel?> getUserById(int id) async {
     try {
       final db = await database;
-      final maps = await db.query('users', where: 'id = ?', whereArgs: [id], limit: 1);
+      final maps =
+          await db.query('users', where: 'id = ?', whereArgs: [id], limit: 1);
       if (maps.isEmpty) return null;
       return UserModel.fromMap(maps.first);
     } catch (e) {
@@ -189,14 +189,15 @@ class DatabaseHelper {
   Future<List<UserModel>> searchTenants(String query) async {
     try {
       final db = await database;
-      // Sanitasi query pencarian — batasi panjang dan karakter
       final sanitized = query.trim().replaceAll(RegExp(r'''['";\\]'''), '');
-      final limited = sanitized.length > 50 ? sanitized.substring(0, 50) : sanitized;
+      final limited =
+          sanitized.length > 50 ? sanitized.substring(0, 50) : sanitized;
       if (limited.isEmpty) return getAllTenants();
 
       final maps = await db.query(
         'users',
-        where: "role = 'tenant' AND (nama_lengkap LIKE ? OR nik LIKE ? OR username LIKE ?)",
+        where:
+            "role = 'tenant' AND (nama_lengkap LIKE ? OR nik LIKE ? OR username LIKE ?)",
         whereArgs: ['%$limited%', '%$limited%', '%$limited%'],
         orderBy: 'nama_lengkap ASC',
       );
@@ -204,6 +205,29 @@ class DatabaseHelper {
     } catch (e) {
       return [];
     }
+  }
+
+  Future<bool> changePassword({
+    required int userId,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final db = await database;
+    // Verifikasi password lama
+    final result = await db.query(
+      'users',
+      where: 'id = ? AND password = ?',
+      whereArgs: [userId, hashPassword(oldPassword)],
+    );
+    if (result.isEmpty) return false;
+    // Update password baru
+    await db.update(
+      'users',
+      {'password': hashPassword(newPassword)},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+    return true;
   }
 
   Future<int> createTenant(UserModel user) async {
@@ -303,7 +327,8 @@ class DatabaseHelper {
     }
   }
 
-  Future<PaymentModel?> getPaymentByUserAndBulan(int userId, String bulan) async {
+  Future<PaymentModel?> getPaymentByUserAndBulan(
+      int userId, String bulan) async {
     try {
       final db = await database;
       final maps = await db.query(
@@ -326,7 +351,8 @@ class DatabaseHelper {
         'payments',
         {
           'status': status.value,
-          if (status == PaymentStatus.paid) 'paid_at': DateTime.now().toIso8601String(),
+          if (status == PaymentStatus.paid)
+            'paid_at': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
         whereArgs: [paymentId],
@@ -373,6 +399,7 @@ class DatabaseHelper {
         'total_tenant': totalTenant,
         'tenant_aktif': tenantAktif,
         'tenant_nonaktif': totalTenant - tenantAktif,
+        'total_kamar': 15, // ← hardcode 15 kamar
         'pendapatan_bulan_ini': pendapatanBulanIni,
         'tagihan_pending': tagihantPending,
         'bulan': bulanIni,

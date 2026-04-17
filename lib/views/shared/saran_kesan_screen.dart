@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 
@@ -18,10 +19,30 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
   final _kesanCtrl = TextEditingController();
   bool _isSaved = false;
 
+  static const _keyKesan = 'saran_kesan_kesan';
+  static const _keySaran = 'saran_kesan_saran';
+  static const _keySaved = 'saran_kesan_is_saved';
+
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
   static const _dosen = 'Nama Dosen Pengampu'; // Ganti sesuai dosen asli
   static const _semester = 'Semester Gasal 2025/2026';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool(_keySaved) ?? false;
+    if (saved) {
+      _kesanCtrl.text = prefs.getString(_keyKesan) ?? '';
+      _saranCtrl.text = prefs.getString(_keySaran) ?? '';
+      setState(() => _isSaved = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -30,22 +51,27 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
     super.dispose();
   }
 
-  void _simpan() {
+  void _simpan() async {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // Untuk sekarang cukup tampilkan konfirmasi (hardcoded — tidak kirim ke mana-mana)
-    setState(() => _isSaved = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyKesan, _kesanCtrl.text);
+    await prefs.setString(_keySaran, _saranCtrl.text);
+    await prefs.setBool(_keySaved, true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
-        backgroundColor: const Color(0xFF1BC0BA),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    setState(() => _isSaved = true);
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
+          backgroundColor: const Color(0xFF1BC0BA),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
   }
 
   @override
@@ -53,7 +79,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Saran & Kesan TPM', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Saran & Kesan TPM',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Color(0xFF8095E4)),
@@ -72,14 +99,16 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF8095E4).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF8095E4).withOpacity(0.2)),
+                  border: Border.all(
+                      color: const Color(0xFF8095E4).withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.school_rounded, color: Color(0xFF8095E4), size: 20),
+                        const Icon(Icons.school_rounded,
+                            color: Color(0xFF8095E4), size: 20),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -110,7 +139,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 maxLines: 5,
                 maxLength: AppConstants.MAX_SARAN_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_SARAN_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_SARAN_LENGTH),
                 ],
                 validator: AppValidators.validateSaranKesan,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
@@ -128,12 +158,14 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 maxLines: 5,
                 maxLength: AppConstants.MAX_SARAN_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_SARAN_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_SARAN_LENGTH),
                 ],
                 validator: AppValidators.validateSaranKesan,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
                 decoration: _inputDecoration(
-                  hint: 'Tulis saran kamu untuk pengembangan mata kuliah ini...',
+                  hint:
+                      'Tulis saran kamu untuk pengembangan mata kuliah ini...',
                 ),
               ),
               const SizedBox(height: 28),
@@ -147,12 +179,14 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                     onPressed: _simpan,
                     icon: const Icon(Icons.save_rounded, size: 20),
                     label: const Text('Simpan Saran & Kesan',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8095E4),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 )
@@ -163,12 +197,14 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF1BC0BA).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF1BC0BA).withOpacity(0.3)),
+                    border: Border.all(
+                        color: const Color(0xFF1BC0BA).withOpacity(0.3)),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_rounded, color: Color(0xFF1BC0BA)),
+                      Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF1BC0BA)),
                       SizedBox(width: 8),
                       Text('Sudah disimpan. Terima kasih!',
                           style: TextStyle(
@@ -250,10 +286,12 @@ class _InfoRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 68,
-          child: Text('$label:', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          child: Text('$label:',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
         ),
         Expanded(
-          child: Text(value, style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E))),
+          child: Text(value,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E))),
         ),
       ],
     );
