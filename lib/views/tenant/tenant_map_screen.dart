@@ -125,6 +125,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
 
         // Fit bounds agar kos dan user terlihat
         _fitBounds(LatLng(position.latitude, position.longitude));
+        _animateToUser();
       }
     } on Exception catch (e) {
       if (mounted) {
@@ -172,6 +173,13 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
       CameraUpdate.newCameraPosition(
         const CameraPosition(target: _kosLatLng, zoom: 16),
       ),
+    );
+  }
+
+  void _animateToUser() {
+    if (_mapController == null || _userPosition == null) return;
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLng(LatLng(_userPosition!.latitude, _userPosition!.longitude)),
     );
   }
 
