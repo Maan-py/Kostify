@@ -63,10 +63,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Google Maps API Key — GANTI dengan key kamu -->
+        <!-- Google Maps API Key from .env -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE"/>
+            android:value="${GOOGLE_MAPS_API_KEY}"/>
 
         <meta-data
             android:name="flutterEmbedding"

@@ -1,6 +1,8 @@
 // lib/utils/constants.dart
 // ignore_for_file: constant_identifier_names
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   // ─── App Info ───────────────────────────────────────────────────────────────
   static const String APP_NAME = 'Kostify';
@@ -19,9 +21,7 @@ class AppConstants {
   static const String EXCHANGE_RATE_API_KEY = 'YOUR_EXCHANGE_RATE_API_KEY_HERE';
   static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
   static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
-  static const String GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
-
-  // ─── API Base URLs ───────────────────────────────────────────────────────────
+  static String get GOOGLE_MAPS_API_KEY => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   static const String EXCHANGE_RATE_BASE_URL =

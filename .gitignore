@@ -52,4 +52,7 @@ app.*.map.json
 *.keystore
 local.properties
 key.properties
+
+issue.md
+
 .env

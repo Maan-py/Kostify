@@ -21,7 +21,14 @@ def flutterVersionName = localProperties.getProperty('flutter.versionName')
 if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
-
+def dotenv = new Properties()
+def envFile = rootProject.file('../.env')
+if (envFile.exists()) {
+    envFile.withReader('UTF-8') { reader ->
+        dotenv.load(reader)
+    }
+}
+def googleMapsApiKey = dotenv.getProperty('GOOGLE_MAPS_API_KEY') ?: 'MISSING_API_KEY'
 android {
     namespace "id.kostify.app"
     compileSdk flutter.compileSdkVersion
@@ -48,8 +55,7 @@ android {
         targetSdk flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        multiDexEnabled true
-    }
+        multiDexEnabled true        manifestPlaceholders = [GOOGLE_MAPS_API_KEY: googleMapsApiKey]    }
 
     buildTypes {
         release {
