@@ -254,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _buildBiometricButton() {
     return Obx(() {
-      if (!_auth.isBiometricAvailable.value) return const SizedBox.shrink();
+      if (!_auth.isBiometricAvailable.value || !_auth.hasSavedUsername.value) return const SizedBox.shrink();
       return SizedBox(
         width: double.infinity,
         height: 52,
@@ -272,14 +272,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
   }
 
-  /// Login menggunakan biometric saja (jika sudah ada session tersimpan)
+  /// Login menggunakan biometric saja (jika sudah ada session tersimpan atau username tersimpan)
   Future<void> _biometricOnlyLogin() async {
     if (_auth.isLoggedIn) {
       _navigateAfterLogin(_auth.isAdmin);
       return;
     }
-    // Jika tidak ada session, minta isi form dulu
-    _showError('Masukkan username & password terlebih dahulu untuk login pertama kali.');
+
+    // Jika tidak ada session aktif, coba login dengan biometric menggunakan username tersimpan
+    final result = await _auth.loginWithBiometric();
+    if (result.success && result.user != null) {
+      _navigateAfterLogin(result.user!.isAdmin);
+    } else {
+      _showError(result.message ?? 'Login dengan biometrik gagal.');
+    }
   }
 
   Widget _buildFooter() {

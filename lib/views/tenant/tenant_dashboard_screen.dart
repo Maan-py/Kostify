@@ -362,6 +362,93 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
     );
   }
 
+  Future<void> _changePassword() async {
+    final oldCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Ganti Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password Lama'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password Baru'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Konfirmasi Password Baru'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1BC0BA)),
+            child: const Text('Ganti'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+
+    final oldPass = oldCtrl.text.trim();
+    final newPass = newCtrl.text.trim();
+    final confirmPass = confirmCtrl.text.trim();
+
+    if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (newPass != confirmPass) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password baru tidak cocok'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (newPass.length < AppConstants.MIN_PASSWORD_LENGTH) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Password minimal ${AppConstants.MIN_PASSWORD_LENGTH} karakter'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final success = await _db.changePassword(
+      userId: _auth.currentUser.value!.id!,
+      oldPassword: oldPass,
+      newPassword: newPass,
+    );
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password berhasil diubah'), backgroundColor: Color(0xFF1BC0BA)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password lama salah'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -463,6 +550,9 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             const SizedBox(height: 16),
 
             // Menu
+            _ProfileMenuItem(icon: Icons.lock_rounded, label: 'Ganti Password',
+                onTap: _changePassword),
+            const SizedBox(height: 8),
             _ProfileMenuItem(icon: Icons.rate_review_rounded, label: 'Saran & Kesan TPM',
                 onTap: () => Get.to(() => const SaranKesanScreen())),
             const SizedBox(height: 8),

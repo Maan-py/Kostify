@@ -166,7 +166,7 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                           Expanded(
                             child: _StatCard(
                               label: 'Total Kamar',
-                              value: '${_stats['total_tenant'] ?? 0}',
+                              value: '${_stats['total_kamar'] ?? 15}',
                               icon: Icons.home_work_rounded,
                               color: const Color(0xFF8095E4),
                             ),

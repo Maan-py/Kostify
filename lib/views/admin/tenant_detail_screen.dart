@@ -92,69 +92,74 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       text: _tenant.hargaSewa?.toString() ?? '',
     );
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Tambah Tagihan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: bulanCtrl,
-              maxLength: 7,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
-                LengthLimitingTextInputFormatter(7),
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder( // ← gunakan StatefulBuilder
+          builder: (ctx, setDialogState) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Tambah Tagihan'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: bulanCtrl,
+                  maxLength: 7,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                    LengthLimitingTextInputFormatter(7),
+                  ],
+                  decoration: const InputDecoration(labelText: 'Bulan (yyyy-MM)', counterText: ''),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 12,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(12),
+                  ],
+                  decoration: const InputDecoration(labelText: 'Jumlah (IDR)', counterText: ''),
+                ),
               ],
-              decoration: const InputDecoration(labelText: 'Bulan (yyyy-MM)', counterText: ''),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              maxLength: 12,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(12),
-              ],
-              decoration: const InputDecoration(labelText: 'Jumlah (IDR)', counterText: ''),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8095E4), foregroundColor: Colors.white, elevation: 0),
-            child: const Text('Tambah'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8095E4), foregroundColor: Colors.white, elevation: 0),
+                child: const Text('Tambah'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
-
-    final bulan = bulanCtrl.text.trim();
-    final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
-    bulanCtrl.dispose();
-    amountCtrl.dispose();
-
-    if (bulan.isEmpty || amount <= 0) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data tidak valid'), backgroundColor: Colors.red),
+        ),
       );
-      return;
-    }
 
-    await _db.createPayment(PaymentModel(
-      userId: _tenant.id!,
-      amount: amount,
-      status: PaymentStatus.pending,
-      bulan: bulan,
-      createdAt: DateTime.now(),
-    ));
-    _loadPayments();
+      if (result != true) return;
+
+      final bulan = bulanCtrl.text.trim();
+      final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
+
+      if (bulan.isEmpty || amount <= 0) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data tidak valid'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      await _db.createPayment(PaymentModel(
+        userId: _tenant.id!,
+        amount: amount,
+        status: PaymentStatus.pending,
+        bulan: bulan,
+        createdAt: DateTime.now(),
+      ));
+      _loadPayments();
+    } finally {
+      bulanCtrl.dispose(); // ← dispose di finally, dijamin setelah dialog tutup
+      amountCtrl.dispose();
+    }
   }
 
   Future<void> _sendTelegramReminder() async {
