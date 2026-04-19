@@ -1,6 +1,8 @@
 // lib/utils/constants.dart
 // ignore_for_file: constant_identifier_names
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   // ─── App Info ───────────────────────────────────────────────────────────────
   static const String APP_NAME = 'Kostify';
@@ -19,9 +21,8 @@ class AppConstants {
   static const String EXCHANGE_RATE_API_KEY = 'YOUR_EXCHANGE_RATE_API_KEY_HERE';
   static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
   static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
-  static const String GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
-
-  // ─── API Base URLs ───────────────────────────────────────────────────────────
+  static String get GOOGLE_MAPS_API_KEY =>
+      dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   static const String EXCHANGE_RATE_BASE_URL =
@@ -47,9 +48,9 @@ class AppConstants {
   static const String STORAGE_SAVED_USERNAME = 'saved_username';
 
   // ─── Sensor ──────────────────────────────────────────────────────────────────
-  static const double SHAKE_THRESHOLD = 15.0;       // m/s² threshold guncangan
-  static const int SHAKE_COOLDOWN_SECONDS = 5;       // Cooldown antar notif darurat
-  static const int SHAKE_COUNT_REQUIRED = 3;         // Jumlah shake sebelum trigger
+  static const double SHAKE_THRESHOLD = 15.0; // m/s² threshold guncangan
+  static const int SHAKE_COOLDOWN_SECONDS = 5; // Cooldown antar notif darurat
+  static const int SHAKE_COUNT_REQUIRED = 3; // Jumlah shake sebelum trigger
 
   // ─── Input Validation ────────────────────────────────────────────────────────
   static const int MAX_USERNAME_LENGTH = 30;
@@ -66,7 +67,7 @@ class AppConstants {
 
   // ─── Foto Profil ─────────────────────────────────────────────────────────────
   static const int MAX_IMAGE_SIZE_KB = 500; // Max 500KB setelah compress
-  static const int IMAGE_QUALITY = 75;      // Kualitas kompresi
+  static const int IMAGE_QUALITY = 75; // Kualitas kompresi
 
   // ─── Mata Uang yang Didukung ─────────────────────────────────────────────────
   static const List<Map<String, String>> SUPPORTED_CURRENCIES = [
@@ -80,18 +81,38 @@ class AppConstants {
 
   // ─── Zona Waktu ──────────────────────────────────────────────────────────────
   static const List<Map<String, String>> TIMEZONES = [
-    {'id': 'WIB',    'name': 'Waktu Indonesia Barat', 'tz': 'Asia/Jakarta',  'offset': '+7'},
-    {'id': 'WITA',   'name': 'Waktu Indonesia Tengah','tz': 'Asia/Makassar', 'offset': '+8'},
-    {'id': 'WIT',    'name': 'Waktu Indonesia Timur', 'tz': 'Asia/Jayapura', 'offset': '+9'},
-    {'id': 'London', 'name': 'London (GMT/BST)',       'tz': 'Europe/London', 'offset': '0/+1'},
+    {
+      'id': 'WIB',
+      'name': 'Waktu Indonesia Barat',
+      'tz': 'Asia/Jakarta',
+      'offset': '+7'
+    },
+    {
+      'id': 'WITA',
+      'name': 'Waktu Indonesia Tengah',
+      'tz': 'Asia/Makassar',
+      'offset': '+8'
+    },
+    {
+      'id': 'WIT',
+      'name': 'Waktu Indonesia Timur',
+      'tz': 'Asia/Jayapura',
+      'offset': '+9'
+    },
+    {
+      'id': 'London',
+      'name': 'London (GMT/BST)',
+      'tz': 'Europe/London',
+      'offset': '0/+1'
+    },
   ];
 
   // ─── Game ────────────────────────────────────────────────────────────────────
-  static const double GRAVITY = 600.0;         // pixel/s² gravity Flappy Bird
-  static const double JUMP_VELOCITY = -280.0;  // Kecepatan lompat (tap)
-  static const double PIPE_SPEED = 180.0;      // Kecepatan pipa bergerak
-  static const double PIPE_GAP = 160.0;        // Celah antara pipa atas dan bawah
-  static const double GYRO_SENSITIVITY = 0.6;  // Sensitivitas gyroscope
+  static const double GRAVITY = 600.0; // pixel/s² gravity Flappy Bird
+  static const double JUMP_VELOCITY = -280.0; // Kecepatan lompat (tap)
+  static const double PIPE_SPEED = 180.0; // Kecepatan pipa bergerak
+  static const double PIPE_GAP = 160.0; // Celah antara pipa atas dan bawah
+  static const double GYRO_SENSITIVITY = 0.6; // Sensitivitas gyroscope
 }
 
 // ─── Warna Tema Kostify ───────────────────────────────────────────────────────
