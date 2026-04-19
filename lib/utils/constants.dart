@@ -44,6 +44,7 @@ class AppConstants {
   static const String STORAGE_USERNAME = 'username';
   static const String STORAGE_ROLE = 'role';
   static const String STORAGE_IS_LOGGED_IN = 'is_logged_in';
+  static const String STORAGE_SAVED_USERNAME = 'saved_username';
 
   // ─── Sensor ──────────────────────────────────────────────────────────────────
   static const double SHAKE_THRESHOLD = 15.0;       // m/s² threshold guncangan

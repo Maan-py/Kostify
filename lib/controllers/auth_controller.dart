@@ -25,6 +25,7 @@ class AuthController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isBiometricAvailable = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxBool hasSavedUsername = false.obs;
 
   bool get isLoggedIn => currentUser.value != null;
   bool get isAdmin => currentUser.value?.isAdmin ?? false;
@@ -33,6 +34,7 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     _checkBiometricAvailability();
+    _checkSavedUsername();
     _restoreSession();
   }
 
@@ -45,6 +47,15 @@ class AuthController extends GetxController {
       isBiometricAvailable.value = isAvailable && isDeviceSupported;
     } on PlatformException {
       isBiometricAvailable.value = false;
+    }
+  }
+
+  Future<void> _checkSavedUsername() async {
+    try {
+      final savedUsername = await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
+      hasSavedUsername.value = savedUsername != null && savedUsername.isNotEmpty;
+    } catch (e) {
+      hasSavedUsername.value = false;
     }
   }
 
@@ -142,6 +153,7 @@ class AuthController extends GetxController {
     await _storage.write(key: AppConstants.STORAGE_USERNAME, value: user.username);
     await _storage.write(key: AppConstants.STORAGE_ROLE, value: user.role);
     await _storage.write(key: AppConstants.STORAGE_IS_LOGGED_IN, value: 'true');
+    await _storage.write(key: AppConstants.STORAGE_SAVED_USERNAME, value: user.username);
   }
 
   Future<void> _restoreSession() async {
@@ -176,19 +188,71 @@ class AuthController extends GetxController {
 
   Future<void> clearSession() async {
     try {
-      await _storage.deleteAll();
+      await _storage.delete(key: AppConstants.STORAGE_USER_ID);
+      await _storage.delete(key: AppConstants.STORAGE_USERNAME);
+      await _storage.delete(key: AppConstants.STORAGE_ROLE);
+      await _storage.delete(key: AppConstants.STORAGE_IS_LOGGED_IN);
+      // Jangan hapus STORAGE_SAVED_USERNAME agar biometric bisa digunakan
     } catch (e) {
       // Storage error — lanjutkan saja
     }
   }
 
-  // ─── Refresh current user dari DB ─────────────────────────────────────────
+  /// Login menggunakan biometric dengan username tersimpan
+  Future<LoginResult> loginWithBiometric() async {
+    errorMessage.value = '';
 
+    // Cek apakah ada username tersimpan
+    final savedUsername = await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
+    if (savedUsername == null || savedUsername.isEmpty) {
+      return LoginResult(
+        success: false,
+        message: 'Masukkan username & password terlebih dahulu untuk login pertama kali.',
+      );
+    }
+
+    // Autentikasi biometric
+    final bioOk = await authenticateBiometric();
+    if (!bioOk) {
+      return LoginResult(
+        success: false,
+        message: errorMessage.value.isNotEmpty
+            ? errorMessage.value
+            : 'Autentikasi biometrik diperlukan.',
+      );
+    }
+
+    // Ambil user dari DB berdasarkan username tersimpan
+    final user = await _db.getUserByUsername(savedUsername);
+    if (user == null || !user.isActive) {
+      return LoginResult(
+        success: false,
+        message: 'Akun tidak ditemukan atau tidak aktif.',
+      );
+    }
+
+    // Simpan session
+    await _saveSession(user);
+    currentUser.value = user;
+
+    return LoginResult(success: true, user: user);
+  }
+
+  /// Refresh data user dari database
   Future<void> refreshUser() async {
-    final id = currentUser.value?.id;
-    if (id == null) return;
-    final updated = await _db.getUserById(id);
-    if (updated != null) currentUser.value = updated;
+    if (currentUser.value == null || currentUser.value!.id == null) return;
+
+    try {
+      final user = await _db.getUserById(currentUser.value!.id!);
+      if (user != null && user.isActive) {
+        currentUser.value = user;
+      } else {
+        await clearSession();
+        currentUser.value = null;
+      }
+    } catch (e) {
+      // Jika gagal refresh, tetap gunakan data lama
+    }
   }
 }
 
