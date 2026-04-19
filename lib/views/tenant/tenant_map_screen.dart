@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../controllers/auth_controller.dart';
@@ -52,10 +53,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
   }
 
   Future<void> _getUserLocation() async {
-    setState(() {
-      _isLoadingLocation = true;
-      _locationError = null;
-    });
+    setState(() { _isLoadingLocation = true; _locationError = null; });
 
     try {
       // Cek permission
@@ -77,8 +75,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
         setState(() {
           _locationPermissionDenied = true;
           _isLoadingLocation = false;
-          _locationError =
-              'Izin lokasi diblokir permanen. Aktifkan di Pengaturan.';
+          _locationError = 'Izin lokasi diblokir permanen. Aktifkan di Pengaturan.';
         });
         return;
       }
@@ -101,10 +98,8 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
 
       // Hitung jarak ke kos
       final distanceM = Geolocator.distanceBetween(
-        position.latitude,
-        position.longitude,
-        AppConstants.KOS_LATITUDE,
-        AppConstants.KOS_LONGITUDE,
+        position.latitude, position.longitude,
+        AppConstants.KOS_LATITUDE, AppConstants.KOS_LONGITUDE,
       );
 
       if (mounted) {
@@ -117,8 +112,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
               markerId: const MarkerId('user'),
               position: LatLng(position.latitude, position.longitude),
               infoWindow: const InfoWindow(title: 'Posisi Kamu'),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueAzure),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
             ),
           );
         });
@@ -145,20 +139,12 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
 
     final bounds = LatLngBounds(
       southwest: LatLng(
-        userLatLng.latitude < _kosLatLng.latitude
-            ? userLatLng.latitude
-            : _kosLatLng.latitude,
-        userLatLng.longitude < _kosLatLng.longitude
-            ? userLatLng.longitude
-            : _kosLatLng.longitude,
+        userLatLng.latitude < _kosLatLng.latitude ? userLatLng.latitude : _kosLatLng.latitude,
+        userLatLng.longitude < _kosLatLng.longitude ? userLatLng.longitude : _kosLatLng.longitude,
       ),
       northeast: LatLng(
-        userLatLng.latitude > _kosLatLng.latitude
-            ? userLatLng.latitude
-            : _kosLatLng.latitude,
-        userLatLng.longitude > _kosLatLng.longitude
-            ? userLatLng.longitude
-            : _kosLatLng.longitude,
+        userLatLng.latitude > _kosLatLng.latitude ? userLatLng.latitude : _kosLatLng.latitude,
+        userLatLng.longitude > _kosLatLng.longitude ? userLatLng.longitude : _kosLatLng.longitude,
       ),
     );
 
@@ -204,14 +190,12 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Lokasi Kos',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Lokasi Kos', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon:
-                const Icon(Icons.my_location_rounded, color: Color(0xFF8095E4)),
+            icon: const Icon(Icons.my_location_rounded, color: Color(0xFF8095E4)),
             tooltip: 'Perbarui Lokasi',
             onPressed: _isLoadingLocation ? null : _getUserLocation,
           ),
@@ -225,22 +209,17 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
             color: Colors.white,
             child: Row(
               children: [
-                const Icon(Icons.home_work_rounded,
-                    color: Color(0xFF8095E4), size: 18),
+                const Icon(Icons.home_work_rounded, color: Color(0xFF8095E4), size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(AppConstants.KOS_NAME,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: Color(0xFF1A1A2E))),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1A1A2E))),
                       Text(
                         AppConstants.KOS_ADDRESS,
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xFF6B7280)),
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -250,18 +229,14 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                 if (_distanceKm != null) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFF8095E4).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _formatDistance(_distanceKm!),
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8095E4)),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8095E4)),
                     ),
                   ),
                 ],
@@ -277,19 +252,16 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
               color: Colors.orange.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      color: Colors.orange.shade700, size: 16),
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(_locationError!,
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.orange.shade800)),
+                        style: TextStyle(fontSize: 11, color: Colors.orange.shade800)),
                   ),
                   if (_locationPermissionDenied)
                     TextButton(
                       onPressed: () => Geolocator.openAppSettings(),
-                      child: const Text('Buka Pengaturan',
-                          style: TextStyle(fontSize: 11)),
+                      child: const Text('Buka Pengaturan', style: TextStyle(fontSize: 11)),
                     ),
                 ],
               ),
@@ -305,15 +277,14 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                     zoom: 15,
                   ),
                   markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
                   onMapCreated: (controller) {
                     _mapController = controller;
                     if (_userPosition != null) {
-                      _fitBounds(LatLng(
-                          _userPosition!.latitude, _userPosition!.longitude));
+                      _fitBounds(LatLng(_userPosition!.latitude, _userPosition!.longitude));
                     }
                   },
                 ),
@@ -322,31 +293,24 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                 if (_isLoadingLocation)
                   Positioned(
                     top: 12,
-                    left: 0,
-                    right: 0,
+                    left: 0, right: 0,
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 8)
-                          ],
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Color(0xFF8095E4)),
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8095E4)),
                             ),
                             SizedBox(width: 8),
-                            Text('Mencari lokasi...',
-                                style: TextStyle(fontSize: 12)),
+                            Text('Mencari lokasi...', style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -361,8 +325,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                     heroTag: 'center_kos',
                     onPressed: _centerToKos,
                     backgroundColor: Colors.white,
-                    child: const Icon(Icons.home_work_rounded,
-                        color: Color(0xFF8095E4)),
+                    child: const Icon(Icons.home_work_rounded, color: Color(0xFF8095E4)),
                   ),
                 ),
               ],
@@ -383,21 +346,18 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: const Color(0xFF8095E4).withOpacity(0.06),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.bedroom_parent_rounded,
-                                color: Color(0xFF8095E4), size: 16),
+                            const Icon(Icons.bedroom_parent_rounded, color: Color(0xFF8095E4), size: 16),
                             const SizedBox(width: 8),
                             Text(
                               'Kamar kamu: No. ${user!.nomorKamar}',
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w500),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -411,15 +371,12 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _openInMaps,
                       icon: const Icon(Icons.navigation_rounded, size: 20),
-                      label: const Text('Navigasi ke Kos',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600)),
+                      label: const Text('Navigasi ke Kos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8095E4),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
