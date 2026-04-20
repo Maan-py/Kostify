@@ -15,7 +15,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -107,7 +108,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 28),
             child: SizedBox(
-              height: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+              height: size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +145,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             color: const Color(0xFF8095E4),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 32),
+          child: const Icon(Icons.home_work_rounded,
+              color: Colors.white, size: 32),
         ),
         const SizedBox(height: 20),
         const Text(
@@ -182,7 +186,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             // Larang spasi pada username
             inputFormatters: [
               FilteringTextInputFormatter.deny(RegExp(r'\s')),
-              LengthLimitingTextInputFormatter(AppConstants.MAX_USERNAME_LENGTH),
+              LengthLimitingTextInputFormatter(
+                  AppConstants.MAX_USERNAME_LENGTH),
               // Larang karakter SQL injection
               FilteringTextInputFormatter.deny(RegExp(r'''[''<>]''')),
             ],
@@ -201,13 +206,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _submit(),
             inputFormatters: [
-              LengthLimitingTextInputFormatter(AppConstants.MAX_PASSWORD_LENGTH),
+              LengthLimitingTextInputFormatter(
+                  AppConstants.MAX_PASSWORD_LENGTH),
             ],
             validator: AppValidators.validatePassword,
             suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
               icon: Icon(
-                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: const Color(0xFF6B7280),
                 size: 20,
               ),
@@ -223,38 +232,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       width: double.infinity,
       height: 52,
       child: Obx(() => ElevatedButton(
-        onPressed: (_isSubmitting || _auth.isLoading.value) ? null : _submit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF8095E4),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF8095E4).withOpacity(0.5),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        child: (_isSubmitting || _auth.isLoading.value)
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
-              )
-            : const Text(
-                'Masuk',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
-              ),
-      )),
+            onPressed:
+                (_isSubmitting || _auth.isLoading.value) ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8095E4),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFF8095E4).withOpacity(0.5),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            child: (_isSubmitting || _auth.isLoading.value)
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Masuk',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+          )),
     );
   }
 
   Widget _buildBiometricButton() {
     return Obx(() {
-      if (!_auth.isBiometricAvailable.value || !_auth.hasSavedUsername.value) return const SizedBox.shrink();
+      if (!_auth.isBiometricAvailable.value || !_auth.hasSavedUsername.value)
+        return const SizedBox.shrink();
       return SizedBox(
         width: double.infinity,
         height: 52,
@@ -265,7 +277,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF8095E4),
             side: const BorderSide(color: Color(0xFF8095E4), width: 1.5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
       );
@@ -375,7 +388,8 @@ class _KostifyTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

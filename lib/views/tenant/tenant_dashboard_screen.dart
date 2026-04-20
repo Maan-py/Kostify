@@ -128,7 +128,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
       await _sendEmergency();
     }
 
-    if (mounted) setState(() { _shakeActive = false; });
+    if (mounted)
+      setState(() {
+        _shakeActive = false;
+      });
   }
 
   Future<bool> _showEmergencyCountdown() async {
@@ -152,7 +155,8 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
     if (user == null) return;
 
     final now = DateTime.now();
-    final msg = 'Sinyal darurat dari ${user.namaLengkap ?? user.username}, kamar ${user.nomorKamar ?? "-"}';
+    final msg =
+        'Sinyal darurat dari ${user.namaLengkap ?? user.username}, kamar ${user.nomorKamar ?? "-"}';
 
     // Simpan ke DB dulu
     await _db.createEmergencyLog(
@@ -176,7 +180,8 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
           backgroundColor: sent ? Colors.red.shade700 : Colors.orange.shade700,
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -194,7 +199,8 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
       body: SafeArea(
         child: Obx(() {
           final user = _auth.currentUser.value;
-          if (user == null) return const Center(child: CircularProgressIndicator());
+          if (user == null)
+            return const Center(child: CircularProgressIndicator());
           return RefreshIndicator(
             onRefresh: _auth.refreshUser,
             color: const Color(0xFF1BC0BA),
@@ -254,22 +260,30 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
   Future<void> _pickAndUploadPhoto() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF8095E4)),
+                leading: const Icon(Icons.camera_alt_rounded,
+                    color: Color(0xFF8095E4)),
                 title: const Text('Ambil Foto'),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF8095E4)),
+                leading: const Icon(Icons.photo_library_rounded,
+                    color: Color(0xFF8095E4)),
                 title: const Text('Pilih dari Galeri'),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
@@ -303,7 +317,8 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
 
       // Cek ukuran
       if (compressed.lengthInBytes > AppConstants.MAX_IMAGE_SIZE_KB * 1024) {
-        throw Exception('Ukuran foto terlalu besar. Maksimal ${AppConstants.MAX_IMAGE_SIZE_KB}KB.');
+        throw Exception(
+            'Ukuran foto terlalu besar. Maksimal ${AppConstants.MAX_IMAGE_SIZE_KB}KB.');
       }
 
       // Simpan ke direktori app
@@ -322,7 +337,8 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             content: const Text('Foto profil berhasil diperbarui!'),
             backgroundColor: const Color(0xFF1BC0BA),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -334,7 +350,8 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             content: Text(e.toString().replaceFirst('Exception: ', '')),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -352,9 +369,13 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
         title: const Text('Keluar?'),
         content: const Text('Apakah kamu yakin ingin keluar?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           TextButton(
-            onPressed: () { Navigator.pop(ctx); _auth.logout(); },
+              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _auth.logout();
+            },
             child: Text('Keluar', style: TextStyle(color: Colors.red.shade600)),
           ),
         ],
@@ -390,15 +411,19 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             TextField(
               controller: confirmCtrl,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Konfirmasi Password Baru'),
+              decoration:
+                  const InputDecoration(labelText: 'Konfirmasi Password Baru'),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1BC0BA)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1BC0BA)),
             child: const Text('Ganti'),
           ),
         ],
@@ -413,21 +438,28 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
 
     if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Semua field harus diisi'),
+            backgroundColor: Colors.red),
       );
       return;
     }
 
     if (newPass != confirmPass) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password baru tidak cocok'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Password baru tidak cocok'),
+            backgroundColor: Colors.red),
       );
       return;
     }
 
     if (newPass.length < AppConstants.MIN_PASSWORD_LENGTH) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password minimal ${AppConstants.MIN_PASSWORD_LENGTH} karakter'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text(
+                'Password minimal ${AppConstants.MIN_PASSWORD_LENGTH} karakter'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -440,11 +472,14 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password berhasil diubah'), backgroundColor: Color(0xFF1BC0BA)),
+        const SnackBar(
+            content: Text('Password berhasil diubah'),
+            backgroundColor: Color(0xFF1BC0BA)),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password lama salah'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Password lama salah'), backgroundColor: Colors.red),
       );
     }
   }
@@ -454,13 +489,15 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Profil Saya', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text('Profil Saya',
+            style: TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: Obx(() {
         final user = _auth.currentUser.value;
-        if (user == null) return const Center(child: CircularProgressIndicator());
+        if (user == null)
+          return const Center(child: CircularProgressIndicator());
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -472,13 +509,15 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
                     onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
                     child: CircleAvatar(
                       radius: 52,
-                      backgroundColor: const Color(0xFF1BC0BA).withOpacity(0.12),
+                      backgroundColor:
+                          const Color(0xFF1BC0BA).withOpacity(0.12),
                       backgroundImage: user.fotoProfilPath != null &&
                               File(user.fotoProfilPath!).existsSync()
                           ? FileImage(File(user.fotoProfilPath!))
                           : null,
                       child: _isUploadingPhoto
-                          ? const CircularProgressIndicator(color: Color(0xFF1BC0BA))
+                          ? const CircularProgressIndicator(
+                              color: Color(0xFF1BC0BA))
                           : user.fotoProfilPath == null
                               ? Text(
                                   (user.namaLengkap?.isNotEmpty == true
@@ -505,7 +544,8 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            size: 14, color: Colors.white),
                       ),
                     ),
                   ),
@@ -516,7 +556,10 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             Center(
               child: Text(
                 user.namaLengkap ?? user.username,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A2E)),
               ),
             ),
             Center(
@@ -526,7 +569,8 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             const SizedBox(height: 6),
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: user.isActive
                       ? const Color(0xFF1BC0BA).withOpacity(0.1)
@@ -538,7 +582,9 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: user.isActive ? const Color(0xFF0F6E56) : Colors.red.shade700,
+                    color: user.isActive
+                        ? const Color(0xFF0F6E56)
+                        : Colors.red.shade700,
                   ),
                 ),
               ),
@@ -550,14 +596,21 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             const SizedBox(height: 16),
 
             // Menu
-            _ProfileMenuItem(icon: Icons.lock_rounded, label: 'Ganti Password',
+            _ProfileMenuItem(
+                icon: Icons.lock_rounded,
+                label: 'Ganti Password',
                 onTap: _changePassword),
             const SizedBox(height: 8),
-            _ProfileMenuItem(icon: Icons.rate_review_rounded, label: 'Saran & Kesan TPM',
+            _ProfileMenuItem(
+                icon: Icons.rate_review_rounded,
+                label: 'Saran & Kesan TPM',
                 onTap: () => Get.to(() => const SaranKesanScreen())),
             const SizedBox(height: 8),
-            _ProfileMenuItem(icon: Icons.logout_rounded, label: 'Keluar',
-                color: Colors.red.shade600, onTap: () => _confirmLogout(context)),
+            _ProfileMenuItem(
+                icon: Icons.logout_rounded,
+                label: 'Keluar',
+                color: Colors.red.shade600,
+                onTap: () => _confirmLogout(context)),
           ],
         );
       }),
@@ -588,7 +641,10 @@ class _GreetingHeader extends StatelessWidget {
         Text(_getGreeting(),
             style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
         Text(firstName,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A2E))),
       ],
     );
   }
@@ -618,10 +674,14 @@ class _RoomCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Kamar Kamu', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text('Kamar Kamu',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
                 Text(
                   'No. ${user.nomorKamar ?? "-"}',
-                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800),
                 ),
                 Text(
                   AppConstants.KOS_NAME,
@@ -633,10 +693,16 @@ class _RoomCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text('Sewa/bulan', style: TextStyle(color: Colors.white60, fontSize: 10)),
+              const Text('Sewa/bulan',
+                  style: TextStyle(color: Colors.white60, fontSize: 10)),
               Text(
-                user.hargaSewa != null ? AppValidators.formatRupiah(user.hargaSewa!) : '-',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                user.hargaSewa != null
+                    ? AppValidators.formatRupiah(user.hargaSewa!)
+                    : '-',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -683,10 +749,14 @@ class _PaymentCardState extends State<_PaymentCard> {
         children: [
           const Row(
             children: [
-              Icon(Icons.receipt_long_rounded, color: Color(0xFF8095E4), size: 18),
+              Icon(Icons.receipt_long_rounded,
+                  color: Color(0xFF8095E4), size: 18),
               SizedBox(width: 8),
               Text('Riwayat Pembayaran',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1A2E))),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Color(0xFF1A1A2E))),
             ],
           ),
           const SizedBox(height: 12),
@@ -722,12 +792,15 @@ class _PaymentRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A2E))),
           ),
           Text(AppValidators.formatRupiah(payment.amount),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              style:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: isPaid ? const Color(0xFF1BC0BA).withOpacity(0.1) : Colors.orange.shade50,
+              color: isPaid
+                  ? const Color(0xFF1BC0BA).withOpacity(0.1)
+                  : Colors.orange.shade50,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -735,7 +808,8 @@ class _PaymentRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: isPaid ? const Color(0xFF0F6E56) : Colors.orange.shade800,
+                color:
+                    isPaid ? const Color(0xFF0F6E56) : Colors.orange.shade800,
               ),
             ),
           ),
@@ -750,7 +824,10 @@ class _EmergencyCard extends StatelessWidget {
   final bool isSent;
   final VoidCallback onManualPress;
 
-  const _EmergencyCard({required this.isActive, required this.isSent, required this.onManualPress});
+  const _EmergencyCard(
+      {required this.isActive,
+      required this.isSent,
+      required this.onManualPress});
 
   @override
   Widget build(BuildContext context) {
@@ -759,7 +836,8 @@ class _EmergencyCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? Colors.red.shade50 : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isActive ? Colors.red.shade300 : const Color(0xFFE5E7EB)),
+        border: Border.all(
+            color: isActive ? Colors.red.shade300 : const Color(0xFFE5E7EB)),
       ),
       child: Row(
         children: [
@@ -769,7 +847,8 @@ class _EmergencyCard extends StatelessWidget {
               color: Colors.red.shade50,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.sos_rounded, color: Colors.red.shade600, size: 24),
+            child:
+                Icon(Icons.sos_rounded, color: Colors.red.shade600, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -777,14 +856,19 @@ class _EmergencyCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Tombol Darurat',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1A1A2E))),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Color(0xFF1A1A2E))),
                 Text(
                   isSent
                       ? '✓ Sinyal dikirim ke admin'
                       : 'Kocok ponsel 3x atau tekan tombol',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isSent ? const Color(0xFF0F6E56) : const Color(0xFF6B7280),
+                    color: isSent
+                        ? const Color(0xFF0F6E56)
+                        : const Color(0xFF6B7280),
                   ),
                 ),
               ],
@@ -833,13 +917,16 @@ class _KosInfoCard extends StatelessWidget {
             children: [
               Icon(Icons.apartment_rounded, color: Color(0xFF8095E4), size: 18),
               SizedBox(width: 8),
-              Text('Info Kos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              Text('Info Kos',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ],
           ),
           const SizedBox(height: 12),
           _InfoRow(icon: Icons.home, label: AppConstants.KOS_NAME),
           const SizedBox(height: 6),
-          _InfoRow(icon: Icons.location_on_outlined, label: AppConstants.KOS_ADDRESS),
+          _InfoRow(
+              icon: Icons.location_on_outlined,
+              label: AppConstants.KOS_ADDRESS),
         ],
       ),
     );
@@ -858,7 +945,10 @@ class _InfoRow extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: const Color(0xFF6B7280)),
         const SizedBox(width: 6),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
+        Expanded(
+            child: Text(label,
+                style:
+                    const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
       ],
     );
   }
@@ -884,8 +974,11 @@ class _ProfileInfoCard extends StatelessWidget {
           _DetailRow(label: 'Alamat KTP', value: user.alamat ?? '-'),
           _DetailRow(label: 'Telepon', value: user.telepon ?? '-'),
           _DetailRow(label: 'Tanggal Masuk', value: user.tanggalMasuk ?? '-'),
-          _DetailRow(label: 'Sewa/bulan',
-              value: user.hargaSewa != null ? AppValidators.formatRupiah(user.hargaSewa!) : '-'),
+          _DetailRow(
+              label: 'Sewa/bulan',
+              value: user.hargaSewa != null
+                  ? AppValidators.formatRupiah(user.hargaSewa!)
+                  : '-'),
         ],
       ),
     );
@@ -906,12 +999,16 @@ class _DetailRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            child: Text(label,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
           ),
           const Text(': ', style: TextStyle(color: Color(0xFF6B7280))),
           Expanded(
             child: Text(value,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1A1A2E))),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A2E))),
           ),
         ],
       ),
@@ -924,7 +1021,11 @@ class _ProfileMenuItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final Color? color;
-  const _ProfileMenuItem({required this.icon, required this.label, required this.onTap, this.color});
+  const _ProfileMenuItem(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -937,7 +1038,8 @@ class _ProfileMenuItem extends StatelessWidget {
       ),
       child: ListTile(
         leading: Icon(icon, color: c, size: 22),
-        title: Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w500)),
+        title: Text(label,
+            style: TextStyle(color: c, fontWeight: FontWeight.w500)),
         trailing: Icon(Icons.chevron_right_rounded, color: c.withOpacity(0.5)),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -951,10 +1053,12 @@ class _ProfileMenuItem extends StatelessWidget {
 class _EmergencyCountdownDialog extends StatefulWidget {
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
-  const _EmergencyCountdownDialog({required this.onCancel, required this.onConfirm});
+  const _EmergencyCountdownDialog(
+      {required this.onCancel, required this.onConfirm});
 
   @override
-  State<_EmergencyCountdownDialog> createState() => _EmergencyCountdownDialogState();
+  State<_EmergencyCountdownDialog> createState() =>
+      _EmergencyCountdownDialogState();
 }
 
 class _EmergencyCountdownDialogState extends State<_EmergencyCountdownDialog> {
@@ -985,17 +1089,23 @@ class _EmergencyCountdownDialogState extends State<_EmergencyCountdownDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.red.shade50,
-      title: const Text('🚨 DARURAT!', textAlign: TextAlign.center,
+      title: const Text('🚨 DARURAT!',
+          textAlign: TextAlign.center,
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             '$_countdown',
-            style: TextStyle(fontSize: 64, fontWeight: FontWeight.w900, color: Colors.red.shade700),
+            style: TextStyle(
+                fontSize: 64,
+                fontWeight: FontWeight.w900,
+                color: Colors.red.shade700),
           ),
-          const Text('Sinyal darurat akan dikirim ke admin dalam hitungan mundur.',
-              textAlign: TextAlign.center, style: TextStyle(fontSize: 13)),
+          const Text(
+              'Sinyal darurat akan dikirim ke admin dalam hitungan mundur.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13)),
         ],
       ),
       actions: [
@@ -1006,7 +1116,8 @@ class _EmergencyCountdownDialogState extends State<_EmergencyCountdownDialog> {
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: Colors.grey.shade700,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Batalkan — Ini Tidak Sengaja'),
           ),

@@ -52,8 +52,10 @@ class AuthController extends GetxController {
 
   Future<void> _checkSavedUsername() async {
     try {
-      final savedUsername = await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
-      hasSavedUsername.value = savedUsername != null && savedUsername.isNotEmpty;
+      final savedUsername =
+          await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
+      hasSavedUsername.value =
+          savedUsername != null && savedUsername.isNotEmpty;
     } catch (e) {
       hasSavedUsername.value = false;
     }
@@ -61,19 +63,21 @@ class AuthController extends GetxController {
 
   /// Autentikasi biometric. Kembalikan true jika berhasil, false jika gagal/tidak tersedia.
   Future<bool> authenticateBiometric() async {
-    if (!isBiometricAvailable.value) return true; // Langsung allow jika tidak ada biometric
+    if (!isBiometricAvailable.value)
+      return true; // Langsung allow jika tidak ada biometric
 
     try {
       final List<BiometricType> availableBiometrics =
           await _auth.getAvailableBiometrics();
 
-      if (availableBiometrics.isEmpty) return true; // Tidak ada biometric terdaftar
+      if (availableBiometrics.isEmpty)
+        return true; // Tidak ada biometric terdaftar
 
       return await _auth.authenticate(
         localizedReason: 'Verifikasi identitas untuk masuk ke Kostify',
         options: const AuthenticationOptions(
-          biometricOnly: false,  // Boleh fallback ke PIN device
-          stickyAuth: true,      // Tetap tampil walau app pindah background
+          biometricOnly: false, // Boleh fallback ke PIN device
+          stickyAuth: true, // Tetap tampil walau app pindah background
           sensitiveTransaction: false,
         ),
       );
@@ -104,10 +108,12 @@ class AuthController extends GetxController {
 
     // Validasi input
     final userError = AppValidators.validateUsername(username);
-    if (userError != null) return LoginResult(success: false, message: userError);
+    if (userError != null)
+      return LoginResult(success: false, message: userError);
 
     final passError = AppValidators.validatePassword(password);
-    if (passError != null) return LoginResult(success: false, message: passError);
+    if (passError != null)
+      return LoginResult(success: false, message: passError);
 
     isLoading.value = true;
     try {
@@ -149,16 +155,20 @@ class AuthController extends GetxController {
   // ─── Session ───────────────────────────────────────────────────────────────
 
   Future<void> _saveSession(UserModel user) async {
-    await _storage.write(key: AppConstants.STORAGE_USER_ID, value: user.id.toString());
-    await _storage.write(key: AppConstants.STORAGE_USERNAME, value: user.username);
+    await _storage.write(
+        key: AppConstants.STORAGE_USER_ID, value: user.id.toString());
+    await _storage.write(
+        key: AppConstants.STORAGE_USERNAME, value: user.username);
     await _storage.write(key: AppConstants.STORAGE_ROLE, value: user.role);
     await _storage.write(key: AppConstants.STORAGE_IS_LOGGED_IN, value: 'true');
-    await _storage.write(key: AppConstants.STORAGE_SAVED_USERNAME, value: user.username);
+    await _storage.write(
+        key: AppConstants.STORAGE_SAVED_USERNAME, value: user.username);
   }
 
   Future<void> _restoreSession() async {
     try {
-      final isLoggedIn = await _storage.read(key: AppConstants.STORAGE_IS_LOGGED_IN);
+      final isLoggedIn =
+          await _storage.read(key: AppConstants.STORAGE_IS_LOGGED_IN);
       if (isLoggedIn != 'true') return;
 
       final userIdStr = await _storage.read(key: AppConstants.STORAGE_USER_ID);
@@ -203,11 +213,13 @@ class AuthController extends GetxController {
     errorMessage.value = '';
 
     // Cek apakah ada username tersimpan
-    final savedUsername = await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
+    final savedUsername =
+        await _storage.read(key: AppConstants.STORAGE_SAVED_USERNAME);
     if (savedUsername == null || savedUsername.isEmpty) {
       return LoginResult(
         success: false,
-        message: 'Masukkan username & password terlebih dahulu untuk login pertama kali.',
+        message:
+            'Masukkan username & password terlebih dahulu untuk login pertama kali.',
       );
     }
 

@@ -179,7 +179,8 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
   void _animateToUser() {
     if (_mapController == null || _userPosition == null) return;
     _mapController!.animateCamera(
-      CameraUpdate.newLatLng(LatLng(_userPosition!.latitude, _userPosition!.longitude)),
+      CameraUpdate.newLatLng(
+          LatLng(_userPosition!.latitude, _userPosition!.longitude)),
     );
   }
 
