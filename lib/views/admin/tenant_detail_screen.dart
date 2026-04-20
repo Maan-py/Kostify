@@ -37,7 +37,11 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   Future<void> _loadPayments() async {
     setState(() => _isLoading = true);
     final payments = await _db.getPaymentsByUser(_tenant.id!);
-    if (mounted) setState(() { _payments = payments; _isLoading = false; });
+    if (mounted)
+      setState(() {
+        _payments = payments;
+        _isLoading = false;
+      });
   }
 
   Future<void> _refreshTenant() async {
@@ -56,7 +60,9 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
           '${AppValidators.formatRupiah(payment.amount)}',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
@@ -95,9 +101,11 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     try {
       final result = await showDialog<bool>(
         context: context,
-        builder: (ctx) => StatefulBuilder( // ← gunakan StatefulBuilder
+        builder: (ctx) => StatefulBuilder(
+          // ← gunakan StatefulBuilder
           builder: (ctx, setDialogState) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Text('Tambah Tagihan'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -109,7 +117,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
                     LengthLimitingTextInputFormatter(7),
                   ],
-                  decoration: const InputDecoration(labelText: 'Bulan (yyyy-MM)', counterText: ''),
+                  decoration: const InputDecoration(
+                      labelText: 'Bulan (yyyy-MM)', counterText: ''),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -120,15 +129,21 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(12),
                   ],
-                  decoration: const InputDecoration(labelText: 'Jumlah (IDR)', counterText: ''),
+                  decoration: const InputDecoration(
+                      labelText: 'Jumlah (IDR)', counterText: ''),
                 ),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Batal')),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8095E4), foregroundColor: Colors.white, elevation: 0),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8095E4),
+                    foregroundColor: Colors.white,
+                    elevation: 0),
                 child: const Text('Tambah'),
               ),
             ],
@@ -142,9 +157,11 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
 
       if (bulan.isEmpty || amount <= 0) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data tidak valid'), backgroundColor: Colors.red),
-        );
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Data tidak valid'), backgroundColor: Colors.red),
+          );
         return;
       }
 
@@ -163,10 +180,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Future<void> _sendTelegramReminder() async {
-    final pendingPayments = _payments.where((p) => p.status == PaymentStatus.pending).toList();
+    final pendingPayments =
+        _payments.where((p) => p.status == PaymentStatus.pending).toList();
     if (pendingPayments.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak ada tagihan pending untuk dikirim.')),
+        const SnackBar(
+            content: Text('Tidak ada tagihan pending untuk dikirim.')),
       );
       return;
     }
@@ -181,8 +200,11 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     if (mounted) {
       setState(() => _isSendingReminder = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(sent ? '✅ Reminder dikirim ke Telegram!' : '⚠️ Gagal kirim. Cek konfigurasi Telegram.'),
-        backgroundColor: sent ? const Color(0xFF1BC0BA) : Colors.orange.shade700,
+        content: Text(sent
+            ? '✅ Reminder dikirim ke Telegram!'
+            : '⚠️ Gagal kirim. Cek konfigurasi Telegram.'),
+        backgroundColor:
+            sent ? const Color(0xFF1BC0BA) : Colors.orange.shade700,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -191,35 +213,124 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Future<void> _editNomorKamar() async {
-    final ctrl = TextEditingController(text: _tenant.nomorKamar ?? '');
+    final availableRooms = await _db.getAvailableRooms();
+    final currentRoom = (_tenant.nomorKamar ?? '').trim();
+
+    if (currentRoom.isNotEmpty && !availableRooms.contains(currentRoom)) {
+      availableRooms.insert(0, currentRoom);
+    }
+
+    if (availableRooms.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada kamar yang tersedia.')),
+        );
+      }
+      return;
+    }
+
+    String selectedRoom =
+        currentRoom.isNotEmpty ? currentRoom : availableRooms.first;
+
     final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Nomor Kamar'),
+          content: DropdownButtonFormField<String>(
+            value: selectedRoom,
+            items: availableRooms
+                .map((room) => DropdownMenuItem<String>(
+                      value: room,
+                      child: Text(room),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setDialogState(() => selectedRoom = value);
+            },
+            decoration: const InputDecoration(
+              labelText: 'Nomor Kamar',
+              hintText: 'Pilih kamar tersedia',
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, selectedRoom),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8095E4),
+                  foregroundColor: Colors.white,
+                  elevation: 0),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null || result == currentRoom) return;
+    await _db.updateNomorKamar(_tenant.id!, result);
+    await _refreshTenant();
+  }
+
+  Future<void> _deleteTenant() async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Nomor Kamar'),
-        content: TextField(
-          controller: ctrl,
-          maxLength: 10,
-          inputFormatters: [
-            LengthLimitingTextInputFormatter(10),
-            FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-          ],
-          decoration: const InputDecoration(labelText: 'Nomor Kamar', hintText: 'cth: A1, 101, B-2', counterText: ''),
+        title: const Text('Hapus Pengguna?'),
+        content: Text(
+          'Akun ${_tenant.namaLengkap ?? _tenant.username} akan dihapus permanen, termasuk data tagihan terkait.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8095E4), foregroundColor: Colors.white, elevation: 0),
-            child: const Text('Simpan'),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            child: const Text('Hapus'),
           ),
         ],
       ),
     );
-    ctrl.dispose();
-    if (result == null) return;
-    await _db.updateNomorKamar(_tenant.id!, result);
-    await _refreshTenant();
+
+    if (confirm != true) return;
+
+    final deleted = await _db.deleteTenant(_tenant.id!);
+    if (!mounted) return;
+
+    if (deleted > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pengguna ${_tenant.namaLengkap ?? _tenant.username} berhasil dihapus.'),
+          backgroundColor: const Color(0xFF1BC0BA),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      Get.back(result: true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal menghapus pengguna.'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   @override
@@ -234,8 +345,15 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         leading: const BackButton(color: Color(0xFF8095E4)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.delete_rounded, color: Colors.red),
+            tooltip: 'Hapus Pengguna',
+            onPressed: _deleteTenant,
+          ),
+          IconButton(
             icon: Icon(
-              _tenant.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
+              _tenant.isActive
+                  ? Icons.block_rounded
+                  : Icons.check_circle_rounded,
               color: _tenant.isActive ? Colors.red : Colors.green,
             ),
             tooltip: _tenant.isActive ? 'Nonaktifkan' : 'Aktifkan',
@@ -247,9 +365,13 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF8095E4)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF8095E4)))
           : RefreshIndicator(
-              onRefresh: () async { await _loadPayments(); await _refreshTenant(); },
+              onRefresh: () async {
+                await _loadPayments();
+                await _refreshTenant();
+              },
               color: const Color(0xFF8095E4),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -276,9 +398,13 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                         Expanded(
                           child: _ActionButton(
                             icon: Icons.send_rounded,
-                            label: _isSendingReminder ? 'Mengirim...' : 'Kirim Reminder',
+                            label: _isSendingReminder
+                                ? 'Mengirim...'
+                                : 'Kirim Reminder',
                             color: const Color(0xFF1BC0BA),
-                            onTap: _isSendingReminder ? null : _sendTelegramReminder,
+                            onTap: _isSendingReminder
+                                ? null
+                                : _sendTelegramReminder,
                           ),
                         ),
                       ],
@@ -289,10 +415,14 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                     Row(
                       children: [
                         const Text('Riwayat Pembayaran',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1A1A2E))),
                         const Spacer(),
                         Text('${_payments.length} tagihan',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF6B7280))),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -308,18 +438,22 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                         ),
                         child: const Column(
                           children: [
-                            Icon(Icons.receipt_long_outlined, size: 40, color: Color(0xFF9CA3AF)),
+                            Icon(Icons.receipt_long_outlined,
+                                size: 40, color: Color(0xFF9CA3AF)),
                             SizedBox(height: 8),
                             Text('Belum ada tagihan',
-                                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+                                style: TextStyle(
+                                    color: Color(0xFF6B7280), fontSize: 13)),
                           ],
                         ),
                       )
                     else
                       ...(_payments.map((p) => _PaymentItem(
-                        payment: p,
-                        onMarkPaid: p.status != PaymentStatus.paid ? () => _markPaid(p) : null,
-                      ))),
+                            payment: p,
+                            onMarkPaid: p.status != PaymentStatus.paid
+                                ? () => _markPaid(p)
+                                : null,
+                          ))),
                   ],
                 ),
               ),
@@ -356,7 +490,10 @@ class _InfoCard extends StatelessWidget {
                           ? tenant.namaLengkap![0]
                           : tenant.username[0])
                       .toUpperCase(),
-                  style: const TextStyle(fontSize: 22, color: Color(0xFF8095E4), fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 22,
+                      color: Color(0xFF8095E4),
+                      fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 14),
@@ -365,23 +502,33 @@ class _InfoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(tenant.namaLengkap ?? '-',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1A2E))),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: Color(0xFF1A1A2E))),
                     Text('@${tenant.username}',
-                        style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                        style: const TextStyle(
+                            color: Color(0xFF6B7280), fontSize: 12)),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: tenant.isActive ? const Color(0xFF1BC0BA).withOpacity(0.1) : Colors.red.shade50,
+                  color: tenant.isActive
+                      ? const Color(0xFF1BC0BA).withOpacity(0.1)
+                      : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   tenant.isActive ? 'Aktif' : 'Nonaktif',
                   style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600,
-                    color: tenant.isActive ? const Color(0xFF0F6E56) : Colors.red.shade700,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: tenant.isActive
+                        ? const Color(0xFF0F6E56)
+                        : Colors.red.shade700,
                   ),
                 ),
               ),
@@ -396,21 +543,31 @@ class _InfoCard extends StatelessWidget {
           _Row(label: 'Tanggal Masuk', value: tenant.tanggalMasuk ?? '-'),
           _Row(
             label: 'Sewa/bulan',
-            value: tenant.hargaSewa != null ? AppValidators.formatRupiah(tenant.hargaSewa!) : '-',
+            value: tenant.hargaSewa != null
+                ? AppValidators.formatRupiah(tenant.hargaSewa!)
+                : '-',
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const SizedBox(width: 110, child: Text('Kamar', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
+              const SizedBox(
+                  width: 110,
+                  child: Text('Kamar',
+                      style:
+                          TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
               const Text(': ', style: TextStyle(color: Color(0xFF6B7280))),
               Text(
                 tenant.nomorKamar ?? '-',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A2E)),
               ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: onEditKamar,
-                child: const Icon(Icons.edit_rounded, size: 14, color: Color(0xFF8095E4)),
+                child: const Icon(Icons.edit_rounded,
+                    size: 14, color: Color(0xFF8095E4)),
               ),
             ],
           ),
@@ -432,9 +589,16 @@ class _Row extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
+          SizedBox(
+              width: 110,
+              child: Text(label,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
           const Text(': ', style: TextStyle(color: Color(0xFF6B7280))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E)))),
+          Expanded(
+              child: Text(value,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E)))),
         ],
       ),
     );
@@ -446,7 +610,11 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  const _ActionButton({required this.icon, required this.label, required this.color, this.onTap});
+  const _ActionButton(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +625,10 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: onTap != null ? color.withOpacity(0.1) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: onTap != null ? color.withOpacity(0.3) : Colors.grey.shade200),
+          border: Border.all(
+              color: onTap != null
+                  ? color.withOpacity(0.3)
+                  : Colors.grey.shade200),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -466,7 +637,8 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(label,
                 style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: onTap != null ? color : Colors.grey,
                 )),
           ],
@@ -486,8 +658,16 @@ class _PaymentItem extends StatelessWidget {
     final isPaid = payment.status == PaymentStatus.paid;
     final isOverdue = payment.status == PaymentStatus.overdue;
 
-    Color statusColor = isPaid ? const Color(0xFF1BC0BA) : isOverdue ? Colors.red : Colors.orange;
-    String statusLabel = isPaid ? 'Lunas' : isOverdue ? 'Terlambat' : 'Belum Bayar';
+    Color statusColor = isPaid
+        ? const Color(0xFF1BC0BA)
+        : isOverdue
+            ? Colors.red
+            : Colors.orange;
+    String statusLabel = isPaid
+        ? 'Lunas'
+        : isOverdue
+            ? 'Terlambat'
+            : 'Belum Bayar';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -507,7 +687,8 @@ class _PaymentItem extends StatelessWidget {
             ),
             child: Icon(
               isPaid ? Icons.check_circle_rounded : Icons.pending_rounded,
-              color: statusColor, size: 18,
+              color: statusColor,
+              size: 18,
             ),
           ),
           const SizedBox(width: 12),
@@ -516,9 +697,13 @@ class _PaymentItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(payment.bulan,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1A1A2E))),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF1A1A2E))),
                 Text(AppValidators.formatRupiah(payment.amount),
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7280))),
               ],
             ),
           ),
@@ -532,14 +717,20 @@ class _PaymentItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(statusLabel,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor)),
               ),
               if (!isPaid && onMarkPaid != null) ...[
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: onMarkPaid,
                   child: const Text('Tandai Lunas',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF8095E4), fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF8095E4),
+                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ],
