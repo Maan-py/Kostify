@@ -50,7 +50,11 @@ class _TenantListScreenState extends State<TenantListScreen> {
       result = await _db.getAllTenants(isActive: _filterActive);
     }
 
-    if (mounted) setState(() { _tenants = result; _isLoading = false; });
+    if (mounted)
+      setState(() {
+        _tenants = result;
+        _isLoading = false;
+      });
   }
 
   Future<void> _toggleStatus(UserModel tenant) async {
@@ -66,7 +70,9 @@ class _TenantListScreenState extends State<TenantListScreen> {
           'Kamu akan $label akun ${tenant.namaLengkap ?? tenant.username}.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
@@ -89,9 +95,11 @@ class _TenantListScreenState extends State<TenantListScreen> {
           content: Text(
             'Akun ${tenant.namaLengkap ?? tenant.username} berhasil ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}.',
           ),
-          backgroundColor: newStatus ? Colors.green.shade700 : Colors.red.shade700,
+          backgroundColor:
+              newStatus ? Colors.green.shade700 : Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -99,52 +107,68 @@ class _TenantListScreenState extends State<TenantListScreen> {
   }
 
   Future<void> _editNomorKamar(UserModel tenant) async {
-    final ctrl = TextEditingController(text: tenant.nomorKamar ?? '');
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Nomor Kamar'),
-        content: TextField(
-          controller: ctrl,
-          maxLength: 10,
-          inputFormatters: [
-            LengthLimitingTextInputFormatter(10),
-                    FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-          ],
-          decoration: const InputDecoration(
-            labelText: 'Nomor Kamar',
-            hintText: 'cth: A1, 101, B-2',
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8095E4),
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
+    final availableRooms = await _db.getAvailableRooms();
+    final currentRoom = (tenant.nomorKamar ?? '').trim();
 
-    ctrl.dispose();
-    if (result == null || result == tenant.nomorKamar) return;
+    if (currentRoom.isNotEmpty && !availableRooms.contains(currentRoom)) {
+      availableRooms.insert(0, currentRoom);
+    }
 
-    final validationError = AppValidators.validateNomorKamar(result.isEmpty ? null : result);
-    if (validationError != null && result.isNotEmpty) {
+    if (availableRooms.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(validationError), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Tidak ada kamar yang tersedia.')),
         );
       }
       return;
     }
+
+    String selectedRoom =
+        currentRoom.isNotEmpty ? currentRoom : availableRooms.first;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Nomor Kamar'),
+          content: DropdownButtonFormField<String>(
+            value: selectedRoom,
+            items: availableRooms
+                .map((room) => DropdownMenuItem<String>(
+                      value: room,
+                      child: Text(room),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setDialogState(() => selectedRoom = value);
+            },
+            decoration: const InputDecoration(
+              labelText: 'Nomor Kamar',
+              hintText: 'Pilih kamar tersedia',
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, selectedRoom),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8095E4),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == null || result == currentRoom) return;
 
     await _db.updateNomorKamar(tenant.id!, result);
     _loadTenants();
@@ -155,12 +179,14 @@ class _TenantListScreenState extends State<TenantListScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Manajemen Penghuni', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Manajemen Penghuni',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_add_rounded, color: Color(0xFF8095E4)),
+            icon:
+                const Icon(Icons.person_add_rounded, color: Color(0xFF8095E4)),
             tooltip: 'Tambah Penghuni',
             onPressed: () async {
               await Get.toNamed('/admin/add-tenant');
@@ -183,12 +209,13 @@ class _TenantListScreenState extends State<TenantListScreen> {
                   maxLength: 50,
                   inputFormatters: [
                     LengthLimitingTextInputFormatter(50),
-                            FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
+                    FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
                   ],
                   onChanged: (_) => _loadTenants(),
                   decoration: InputDecoration(
                     hintText: 'Cari nama, NIK, username...',
-                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF8095E4)),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: Color(0xFF8095E4)),
                     suffixIcon: _searchCtrl.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded),
@@ -205,7 +232,8 @@ class _TenantListScreenState extends State<TenantListScreen> {
                       borderSide: BorderSide.none,
                     ),
                     counterText: '',
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -215,21 +243,30 @@ class _TenantListScreenState extends State<TenantListScreen> {
                     _FilterChip(
                       label: 'Semua',
                       selected: _filterActive == null,
-                      onTap: () => setState(() { _filterActive = null; _loadTenants(); }),
+                      onTap: () => setState(() {
+                        _filterActive = null;
+                        _loadTenants();
+                      }),
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
                       label: 'Aktif',
                       selected: _filterActive == true,
                       color: const Color(0xFF1BC0BA),
-                      onTap: () => setState(() { _filterActive = true; _loadTenants(); }),
+                      onTap: () => setState(() {
+                        _filterActive = true;
+                        _loadTenants();
+                      }),
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
                       label: 'Nonaktif',
                       selected: _filterActive == false,
                       color: Colors.red.shade600,
-                      onTap: () => setState(() { _filterActive = false; _loadTenants(); }),
+                      onTap: () => setState(() {
+                        _filterActive = false;
+                        _loadTenants();
+                      }),
                     ),
                   ],
                 ),
@@ -240,7 +277,8 @@ class _TenantListScreenState extends State<TenantListScreen> {
           // List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF8095E4)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF8095E4)))
                 : _tenants.isEmpty
                     ? _buildEmpty()
                     : RefreshIndicator(
@@ -249,12 +287,14 @@ class _TenantListScreenState extends State<TenantListScreen> {
                         child: ListView.separated(
                           padding: const EdgeInsets.all(16),
                           itemCount: _tenants.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
                           itemBuilder: (ctx, i) => _TenantCard(
                             tenant: _tenants[i],
                             onToggleStatus: () => _toggleStatus(_tenants[i]),
                             onEditKamar: () => _editNomorKamar(_tenants[i]),
-                            onDetail: () => Get.toNamed('/admin/tenant-detail', arguments: _tenants[i]),
+                            onDetail: () => Get.toNamed('/admin/tenant-detail',
+                                arguments: _tenants[i]),
                           ),
                         ),
                       ),
@@ -269,10 +309,13 @@ class _TenantListScreenState extends State<TenantListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline_rounded, size: 64, color: Colors.grey.shade300),
+          Icon(Icons.people_outline_rounded,
+              size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 12),
           Text(
-            _searchCtrl.text.isNotEmpty ? 'Penghuni tidak ditemukan' : 'Belum ada penghuni',
+            _searchCtrl.text.isNotEmpty
+                ? 'Penghuni tidak ditemukan'
+                : 'Belum ada penghuni',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
           ),
           if (_searchCtrl.text.isEmpty) ...[
@@ -288,7 +331,8 @@ class _TenantListScreenState extends State<TenantListScreen> {
                 backgroundColor: const Color(0xFF8095E4),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -364,14 +408,16 @@ class _TenantCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '@${tenant.username}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF6B7280)),
                         ),
                       ],
                     ),
                   ),
                   // Status badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: tenant.isActive
                           ? const Color(0xFF1BC0BA).withOpacity(0.1)
@@ -383,7 +429,9 @@ class _TenantCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: tenant.isActive ? const Color(0xFF0F6E56) : Colors.red.shade700,
+                        color: tenant.isActive
+                            ? const Color(0xFF0F6E56)
+                            : Colors.red.shade700,
                       ),
                     ),
                   ),
@@ -416,17 +464,21 @@ class _TenantCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onEditKamar,
                     icon: const Icon(Icons.edit_rounded, size: 14),
-                    label: const Text('Edit Kamar', style: TextStyle(fontSize: 12)),
+                    label: const Text('Edit Kamar',
+                        style: TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF8095E4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                     ),
                   ),
                   const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: onToggleStatus,
                     icon: Icon(
-                      tenant.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
+                      tenant.isActive
+                          ? Icons.block_rounded
+                          : Icons.check_circle_rounded,
                       size: 14,
                     ),
                     label: Text(
@@ -434,8 +486,10 @@ class _TenantCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: tenant.isActive ? Colors.red.shade600 : Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      foregroundColor:
+                          tenant.isActive ? Colors.red.shade600 : Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                     ),
                   ),
                 ],
@@ -460,7 +514,8 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 12, color: const Color(0xFF6B7280)),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
       ],
     );
   }
@@ -471,7 +526,11 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final Color? color;
   final VoidCallback onTap;
-  const _FilterChip({required this.label, required this.selected, this.color, required this.onTap});
+  const _FilterChip(
+      {required this.label,
+      required this.selected,
+      this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {

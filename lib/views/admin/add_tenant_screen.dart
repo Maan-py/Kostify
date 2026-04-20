@@ -23,25 +23,43 @@ class AddTenantScreen extends StatefulWidget {
 }
 
 class _AddTenantScreenState extends State<AddTenantScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // Step tracking
+  int _currentStep = 0; // 0: Identitas, 1: Data Kos, 2: Akun Login
+  final List<GlobalKey<FormState>> _formKeys = [
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+  ];
+
   final _db = DatabaseHelper();
   final _picker = ImagePicker();
 
-  // Controllers
-  final _usernameCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
+  // Step 1: Data Identitas
   final _namaCtrl = TextEditingController();
   final _nikCtrl = TextEditingController();
   final _alamatCtrl = TextEditingController();
+  final _teleponCtrl = TextEditingController();
+
+  // Step 2: Data Kos
   final _nomorKamarCtrl = TextEditingController();
   final _hargaSewaCtrl = TextEditingController();
   final _tanggalMasukCtrl = TextEditingController();
-  final _teleponCtrl = TextEditingController();
+
+  // Step 3: Akun Login
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _passwordConfirmCtrl = TextEditingController();
 
   bool _isScanning = false;
   bool _isSaving = false;
   bool _obscurePassword = true;
+  bool _obscurePasswordConfirm = true;
   String? _ocrError;
+
+  // Available rooms
+  List<String> _availableRooms = [];
+  bool _isLoadingRooms = false;
+  String? _selectedKamar;
 
   Future<void> _pickTanggalMasuk() async {
     final picked = await showDatePicker(
@@ -57,24 +75,81 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     }
   }
 
+  Future<void> _loadAvailableRooms() async {
+    setState(() => _isLoadingRooms = true);
+    try {
+      final rooms = await _db.getAvailableRooms();
+      setState(() {
+        _availableRooms = rooms;
+        if (rooms.isNotEmpty && _selectedKamar == null) {
+          _selectedKamar = rooms.first;
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Gagal memuat data kamar'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoadingRooms = false);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableRooms();
+  }
+
+  void _goToNextStep() {
+    if (_formKeys[_currentStep].currentState?.validate() ?? false) {
+      if (_currentStep == 1 && _selectedKamar == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Pilih nomor kamar terlebih dahulu'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      // Simpan selected kamar ke controller untuk save nanti
+      _nomorKamarCtrl.text = _selectedKamar ?? '';
+      setState(() => _currentStep += 1);
+    }
+  }
+
+  void _goToPreviousStep() {
+    setState(() => _currentStep -= 1);
+  }
+
   @override
   void dispose() {
-    _usernameCtrl.dispose();
-    _passwordCtrl.dispose();
     _namaCtrl.dispose();
     _nikCtrl.dispose();
     _alamatCtrl.dispose();
+    _teleponCtrl.dispose();
     _nomorKamarCtrl.dispose();
     _hargaSewaCtrl.dispose();
     _tanggalMasukCtrl.dispose();
-    _teleponCtrl.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    _passwordConfirmCtrl.dispose();
     super.dispose();
   }
 
   // ─── OCR KTP ──────────────────────────────────────────────────────────────
 
   Future<void> _scanKTP() async {
-    setState(() { _isScanning = true; _ocrError = null; });
+    setState(() {
+      _isScanning = true;
+      _ocrError = null;
+    });
 
     try {
       final picked = await _picker.pickImage(
@@ -112,12 +187,17 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       } finally {
         await recognizer.close();
         // Hapus file temp setelah diproses
-        try { await tempFile.delete(); } catch (_) {}
-        try { await File(picked.path).delete(); } catch (_) {}
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+        try {
+          await File(picked.path).delete();
+        } catch (_) {}
       }
     } catch (e) {
       setState(() {
-        _ocrError = 'Gagal membaca KTP. Pastikan foto jelas dan cukup cahaya. Isi manual jika perlu.';
+        _ocrError =
+            'Gagal membaca KTP. Pastikan foto jelas dan cukup cahaya. Isi manual jika perlu.';
       });
     } finally {
       setState(() => _isScanning = false);
@@ -126,7 +206,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   void _parseKTPText(String rawText) {
     // Parsing sederhana berdasarkan kata kunci KTP Indonesia
-    final lines = rawText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    final lines = rawText
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
     final fullText = rawText.toUpperCase();
 
     String nik = '';
@@ -156,7 +240,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       // Nama: baris setelah label "NAMA"
       if (nama.isEmpty && lineUpper.contains('NAMA')) {
-        final afterNama = line.replaceAll(RegExp(r'NAMA\s*[:\-]?\s*', caseSensitive: false), '').trim();
+        final afterNama = line
+            .replaceAll(RegExp(r'NAMA\s*[:\-]?\s*', caseSensitive: false), '')
+            .trim();
         if (afterNama.length >= 3) {
           nama = _toTitleCase(afterNama);
         } else if (i + 1 < lines.length) {
@@ -166,7 +252,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       // Alamat: baris setelah label "ALAMAT"
       if (alamat.isEmpty && lineUpper.contains('ALAMAT')) {
-        final afterAlamat = line.replaceAll(RegExp(r'ALAMAT\s*[:\-]?\s*', caseSensitive: false), '').trim();
+        final afterAlamat = line
+            .replaceAll(RegExp(r'ALAMAT\s*[:\-]?\s*', caseSensitive: false), '')
+            .trim();
         if (afterAlamat.length >= 3) {
           alamat = afterAlamat;
         } else if (i + 1 < lines.length) {
@@ -187,7 +275,10 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         anyFilled = true;
         // Auto-generate username dari nama (ambil kata pertama, lowercase)
         if (_usernameCtrl.text.isEmpty) {
-          final firstWord = nama.split(' ').first.toLowerCase()
+          final firstWord = nama
+              .split(' ')
+              .first
+              .toLowerCase()
               .replaceAll(RegExp(r'[^a-z0-9_]'), '');
           _usernameCtrl.text = firstWord;
         }
@@ -197,17 +288,20 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         anyFilled = true;
       }
       if (!anyFilled) {
-        _ocrError = 'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
+        _ocrError =
+            'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
       }
     });
 
     if (anyFilled && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Data KTP berhasil diekstrak! Periksa dan lengkapi form.'),
+          content: const Text(
+              'Data KTP berhasil diekstrak! Periksa dan lengkapi form.'),
           backgroundColor: const Color(0xFF1BC0BA),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -225,7 +319,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   Future<void> _saveTenant() async {
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKeys[2].currentState?.validate() ?? false)) return;
     if (_isSaving) return;
 
     setState(() => _isSaving = true);
@@ -243,7 +337,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         alamat: _alamatCtrl.text.trim(),
         nomorKamar: _nomorKamarCtrl.text.trim(),
         hargaSewa: int.tryParse(_hargaSewaCtrl.text.trim()),
-        telepon: _teleponCtrl.text.trim().isNotEmpty ? _teleponCtrl.text.trim() : null,
+        telepon: _teleponCtrl.text.trim().isNotEmpty
+            ? _teleponCtrl.text.trim()
+            : null,
         tanggalMasuk: tanggalMasuk,
         createdAt: DateTime.now(),
       );
@@ -256,7 +352,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             content: Text('Akun ${user.namaLengkap} berhasil dibuat!'),
             backgroundColor: const Color(0xFF1BC0BA),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -269,7 +366,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             content: Text(e.toString().replaceFirst('Exception: ', '')),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -286,239 +384,509 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Tambah Penghuni', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Tambah Penghuni',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Color(0xFF8095E4)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Scan KTP Section ──
-              _SectionHeader(title: 'Scan KTP (Opsional)', icon: Icons.document_scanner_rounded),
-              const SizedBox(height: 10),
-              _KTPScanCard(
-                isScanning: _isScanning,
-                ocrError: _ocrError,
-                onScan: _scanKTP,
-              ),
-              const SizedBox(height: 24),
-
-              // ── Data Identitas ──
-              _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
-              const SizedBox(height: 12),
-              _FormField(
-                controller: _namaCtrl,
-                label: 'Nama Lengkap *',
-                hint: 'Sesuai KTP',
-                icon: Icons.person_outline_rounded,
-                maxLength: AppConstants.MAX_NAME_LENGTH,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_NAME_LENGTH),
-                  FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-                ],
-                validator: AppValidators.validateNamaLengkap,
-              ),
-              const SizedBox(height: 14),
-              _FormField(
-                controller: _nikCtrl,
-                label: 'NIK *',
-                hint: '16 digit angka',
-                icon: Icons.credit_card_rounded,
-                maxLength: AppConstants.NIK_LENGTH,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(AppConstants.NIK_LENGTH),
-                ],
-                validator: AppValidators.validateNIK,
-              ),
-              const SizedBox(height: 14),
-              _FormField(
-                controller: _alamatCtrl,
-                label: 'Alamat KTP',
-                hint: 'Alamat sesuai KTP',
-                icon: Icons.home_outlined,
-                maxLength: 200,
-                maxLines: 3,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(200),
-                  FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-                ],
-                validator: (v) => null, // opsional
-              ),
-              const SizedBox(height: 14),
-              _FormField(
-                controller: _teleponCtrl,
-                label: 'Nomor Telepon',
-                hint: '08xxxxxxxxxx',
-                icon: Icons.phone_outlined,
-                maxLength: 15,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
-                  LengthLimitingTextInputFormatter(15),
-                ],
-                validator: (v) => null, // opsional
-              ),
-              const SizedBox(height: 24),
-
-              // ── Data Kos ──
-              _SectionHeader(title: 'Data Kos', icon: Icons.home_work_rounded),
-              const SizedBox(height: 12),
-              _FormField(
-                controller: _nomorKamarCtrl,
-                label: 'Nomor Kamar *',
-                hint: 'cth: A1, 101, B-2',
-                icon: Icons.bedroom_parent_rounded,
-                maxLength: 10,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(10),
-                  FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-                ],
-                validator: AppValidators.validateNomorKamar,
-              ),
-              const SizedBox(height: 14),
-              _FormField(
-                controller: _hargaSewaCtrl,
-                label: 'Harga Sewa/Bulan (IDR) *',
-                hint: 'cth: 1500000',
-                icon: Icons.payments_rounded,
-                maxLength: 12,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(12),
-                ],
-                validator: AppValidators.validateHargaSewa,
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: _pickTanggalMasuk,
-                child: AbsorbPointer(
-                  child: _FormField(
-                    controller: _tanggalMasukCtrl,
-                    label: 'Tanggal Masuk *',
-                    hint: 'Pilih tanggal masuk',
-                    icon: Icons.calendar_month_rounded,
-                    maxLength: 10,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Tanggal masuk wajib diisi';
-                      }
-                      return null;
-                    },
+      body: Column(
+        children: [
+          // ─── Step Indicator ─────────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                _buildStepIndicator(0, 'Identitas'),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    color: _currentStep >= 1
+                        ? const Color(0xFF1BC0BA)
+                        : const Color(0xFFE5E7EB),
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: _pickTanggalMasuk,
-                child: AbsorbPointer(
-                  child: _FormField(
-                    controller: _tanggalMasukCtrl,
-                    label: 'Tanggal Masuk *',
-                    hint: 'Pilih tanggal masuk',
-                    icon: Icons.calendar_month_rounded,
-                    maxLength: 10,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Tanggal masuk wajib diisi';
-                      }
-                      return null;
-                    },
+                _buildStepIndicator(1, 'Kos'),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    color: _currentStep >= 2
+                        ? const Color(0xFF1BC0BA)
+                        : const Color(0xFFE5E7EB),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                _buildStepIndicator(2, 'Login'),
+              ],
+            ),
+          ),
 
-              // ── Akun Login ──
-              _SectionHeader(title: 'Akun Login', icon: Icons.lock_outline_rounded),
-              const SizedBox(height: 12),
-              _FormField(
-                controller: _usernameCtrl,
-                label: 'Username *',
-                hint: 'Satu kata, tanpa spasi',
-                icon: Icons.alternate_email_rounded,
-                maxLength: AppConstants.MAX_USERNAME_LENGTH,
-                inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_USERNAME_LENGTH),
-                ],
-                validator: AppValidators.validateUsername,
-              ),
-              const SizedBox(height: 14),
-              // Password field dengan toggle visibility
-              TextFormField(
-                controller: _passwordCtrl,
-                obscureText: _obscurePassword,
-                maxLength: AppConstants.MAX_PASSWORD_LENGTH,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_PASSWORD_LENGTH),
-                ],
-                validator: AppValidators.validatePassword,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-                decoration: InputDecoration(
-                  labelText: 'Password Awal *',
-                  hintText: 'Min. 6 karakter',
-                  counterText: '',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF8095E4)),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      size: 20,
-                      color: const Color(0xFF6B7280),
+          // ─── Form Content ──────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: _buildStepContent(),
+            ),
+          ),
+
+          // ─── Navigation Buttons ────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                if (_currentStep > 0)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _goToPreviousStep,
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: const Text('Kembali'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(
+                            color: Color(0xFF8095E4), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
-                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE53935))),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                if (_currentStep > 0) const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isSaving
+                        ? null
+                        : (_currentStep < 2 ? _goToNextStep : _saveTenant),
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : Icon(
+                            _currentStep < 2
+                                ? Icons.arrow_forward_rounded
+                                : Icons.person_add_rounded,
+                            size: 18,
+                          ),
+                    label: Text(
+                      _isSaving
+                          ? 'Menyimpan...'
+                          : (_currentStep < 2 ? 'Lanjut' : 'Buat Akun'),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8095E4),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                      textStyle: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text(
-                  '💡 Penyewa dapat mengganti password setelah login pertama kali.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-                ),
-              ),
-              const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // ── Submit ──
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _saveTenant,
-                  icon: _isSaving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.person_add_rounded, size: 20),
-                  label: Text(_isSaving ? 'Menyimpan...' : 'Buat Akun Penyewa'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8095E4),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+  Widget _buildStepIndicator(int step, String label) {
+    final isActive = _currentStep == step;
+    final isCompleted = _currentStep > step;
+
+    return Column(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: isActive || isCompleted
+                ? const Color(0xFF1BC0BA)
+                : const Color(0xFFE5E7EB),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Center(
+            child: isCompleted
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+                : Text(
+                    '${step + 1}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.white : const Color(0xFF6B7280),
+                    ),
                   ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+            color: isActive ? const Color(0xFF1BC0BA) : const Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepContent() {
+    return Form(
+      key: _formKeys[_currentStep],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_currentStep == 0) _buildStep1Content(),
+          if (_currentStep == 1) _buildStep2Content(),
+          if (_currentStep == 2) _buildStep3Content(),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep1Content() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+            title: 'Scan KTP Penyewa', icon: Icons.document_scanner_rounded),
+        const SizedBox(height: 14),
+        _KTPScanCard(
+          isScanning: _isScanning,
+          ocrError: _ocrError,
+          onScan: _scanKTP,
+        ),
+        const SizedBox(height: 24),
+        _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
+        const SizedBox(height: 12),
+        _FormField(
+          controller: _namaCtrl,
+          label: 'Nama Lengkap *',
+          hint: 'Sesuai KTP',
+          icon: Icons.person_outline_rounded,
+          maxLength: AppConstants.MAX_NAME_LENGTH,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(AppConstants.MAX_NAME_LENGTH),
+            FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
+          ],
+          validator: AppValidators.validateNamaLengkap,
+        ),
+        const SizedBox(height: 14),
+        _FormField(
+          controller: _nikCtrl,
+          label: 'NIK *',
+          hint: '16 digit angka',
+          icon: Icons.credit_card_rounded,
+          maxLength: AppConstants.NIK_LENGTH,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(AppConstants.NIK_LENGTH),
+          ],
+          validator: AppValidators.validateNIK,
+        ),
+        const SizedBox(height: 14),
+        _FormField(
+          controller: _alamatCtrl,
+          label: 'Alamat KTP',
+          hint: 'Alamat sesuai KTP',
+          icon: Icons.home_outlined,
+          maxLength: 200,
+          maxLines: 3,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(200),
+            FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
+          ],
+          validator: (v) => null,
+        ),
+        const SizedBox(height: 14),
+        _FormField(
+          controller: _teleponCtrl,
+          label: 'Nomor Telepon',
+          hint: '08xxxxxxxxxx',
+          icon: Icons.phone_outlined,
+          maxLength: 15,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
+            LengthLimitingTextInputFormatter(15),
+          ],
+          validator: (v) => null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2Content() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Data Kos', icon: Icons.home_work_rounded),
+        const SizedBox(height: 12),
+        // ── Dropdown Nomor Kamar ──
+        _isLoadingRooms
+            ? Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : _availableRooms.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      border: Border.all(color: Colors.red.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.red.shade700, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Semua kamar sudah terisi. Tidak ada kamar tersedia.',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : DropdownButtonFormField<String>(
+                    value: _selectedKamar,
+                    onChanged: (value) =>
+                        setState(() => _selectedKamar = value),
+                    items: _availableRooms
+                        .map((kamar) => DropdownMenuItem(
+                              value: kamar,
+                              child: Text(kamar),
+                            ))
+                        .toList(),
+                    decoration: InputDecoration(
+                      labelText: 'Nomor Kamar *',
+                      hintText: 'Pilih kamar yang tersedia',
+                      prefixIcon: const Icon(Icons.bedroom_parent_rounded,
+                          size: 20, color: Color(0xFF8095E4)),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF8095E4), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nomor kamar wajib dipilih';
+                      }
+                      return null;
+                    },
+                  ),
+        const SizedBox(height: 14),
+        _FormField(
+          controller: _hargaSewaCtrl,
+          label: 'Harga Sewa/Bulan (IDR) *',
+          hint: 'cth: 1500000',
+          icon: Icons.payments_rounded,
+          maxLength: 12,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(12),
+          ],
+          validator: AppValidators.validateHargaSewa,
+        ),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: _pickTanggalMasuk,
+          child: AbsorbPointer(
+            child: _FormField(
+              controller: _tanggalMasukCtrl,
+              label: 'Tanggal Masuk *',
+              hint: 'Pilih tanggal masuk',
+              icon: Icons.calendar_month_rounded,
+              maxLength: 10,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Tanggal masuk wajib diisi';
+                }
+                return null;
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep3Content() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+            title: 'Akun Login Penyewa', icon: Icons.lock_outline_rounded),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1BC0BA).withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF1BC0BA).withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  color: const Color(0xFF1BC0BA), size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Penyewa dapat mengganti password setelah login pertama kali.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: const Color(0xFF1BC0BA).withOpacity(0.8)),
                 ),
               ),
-              const SizedBox(height: 40),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 18),
+        _FormField(
+          controller: _usernameCtrl,
+          label: 'Username *',
+          hint: 'Satu kata, tanpa spasi',
+          icon: Icons.alternate_email_rounded,
+          maxLength: AppConstants.MAX_USERNAME_LENGTH,
+          inputFormatters: [
+            FilteringTextInputFormatter.deny(RegExp(r'\s')),
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+            LengthLimitingTextInputFormatter(AppConstants.MAX_USERNAME_LENGTH),
+          ],
+          validator: AppValidators.validateUsername,
+        ),
+        const SizedBox(height: 14),
+        TextFormField(
+          controller: _passwordCtrl,
+          obscureText: _obscurePassword,
+          maxLength: AppConstants.MAX_PASSWORD_LENGTH,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(AppConstants.MAX_PASSWORD_LENGTH),
+          ],
+          validator: AppValidators.validatePassword,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
+          decoration: InputDecoration(
+            labelText: 'Password Awal *',
+            hintText: 'Min. 6 karakter',
+            counterText: '',
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                size: 20, color: Color(0xFF8095E4)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 20,
+                color: const Color(0xFF6B7280),
+              ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
+            errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE53935))),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 14),
+        TextFormField(
+          controller: _passwordConfirmCtrl,
+          obscureText: _obscurePasswordConfirm,
+          maxLength: AppConstants.MAX_PASSWORD_LENGTH,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(AppConstants.MAX_PASSWORD_LENGTH),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Konfirmasi password wajib diisi';
+            }
+            if (value != _passwordCtrl.text) {
+              return 'Password tidak cocok';
+            }
+            return null;
+          },
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
+          decoration: InputDecoration(
+            labelText: 'Konfirmasi Password *',
+            hintText: 'Ulangi password',
+            counterText: '',
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                size: 20, color: Color(0xFF8095E4)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePasswordConfirm
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 20,
+                color: const Color(0xFF6B7280),
+              ),
+              onPressed: () => setState(
+                  () => _obscurePasswordConfirm = !_obscurePasswordConfirm),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
+            errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE53935))),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -530,7 +898,8 @@ class _KTPScanCard extends StatelessWidget {
   final String? ocrError;
   final VoidCallback onScan;
 
-  const _KTPScanCard({required this.isScanning, this.ocrError, required this.onScan});
+  const _KTPScanCard(
+      {required this.isScanning, this.ocrError, required this.onScan});
 
   @override
   Widget build(BuildContext context) {
@@ -540,7 +909,9 @@ class _KTPScanCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: ocrError != null ? Colors.orange.shade300 : const Color(0xFFE5E7EB),
+          color: ocrError != null
+              ? Colors.orange.shade300
+              : const Color(0xFFE5E7EB),
         ),
       ),
       child: Column(
@@ -548,12 +919,14 @@ class _KTPScanCard extends StatelessWidget {
           if (ocrError != null) ...[
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 18),
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange.shade600, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     ocrError!,
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.orange.shade800),
                   ),
                 ),
               ],
@@ -568,7 +941,8 @@ class _KTPScanCard extends StatelessWidget {
                   color: const Color(0xFF8095E4).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.credit_card_rounded, color: Color(0xFF8095E4), size: 28),
+                child: const Icon(Icons.credit_card_rounded,
+                    color: Color(0xFF8095E4), size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -576,11 +950,15 @@ class _KTPScanCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Scan KTP Penyewa',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF1A1A2E))),
                     const SizedBox(height: 2),
                     Text(
                       'Foto KTP akan diproses OCR dan dihapus otomatis setelah ekstraksi.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
@@ -594,11 +972,16 @@ class _KTPScanCard extends StatelessWidget {
                     backgroundColor: const Color(0xFF8095E4),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
                   child: isScanning
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Scan', style: TextStyle(fontSize: 13)),
                 ),
               ),
@@ -674,11 +1057,20 @@ class _FormField extends StatelessWidget {
         prefixIcon: Icon(icon, size: 20, color: const Color(0xFF8095E4)),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE53935))),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE53935))),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: 16, vertical: maxLines > 1 ? 12 : 14),
       ),
     );
   }

@@ -125,9 +125,6 @@ class ApiService {
           return GeminiResult.error('Tidak ada respons dari AI. Coba lagi.');
         }
         return GeminiResult.success(text.toString().trim());
-      } else if (response.statusCode == 404) {
-        return GeminiResult.error(
-            'Model Gemini tidak ditemukan atau sudah tidak tersedia.');
       } else if (response.statusCode == 429) {
         return GeminiResult.error(
             'Batas permintaan AI tercapai. Coba lagi dalam beberapa menit.');
