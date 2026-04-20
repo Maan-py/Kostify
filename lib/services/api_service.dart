@@ -38,7 +38,7 @@ class ApiService {
       return GeminiResult.error('Tidak ada koneksi internet.');
     }
 
-    if (AppConstants.GEMINI_API_KEY == 'YOUR_GEMINI_API_KEY_HERE') {
+    if (AppConstants.GEMINI_API_KEY == 'MISSING_API_KEY') {
       return GeminiResult.error(
         'API Key Gemini belum dikonfigurasi. Hubungi administrator.',
       );
@@ -52,11 +52,21 @@ class ApiService {
       if (systemContext != null) {
         contents.add({
           'role': 'user',
-          'parts': [{'text': 'Kamu adalah asisten manajemen kos bernama KosBot. $systemContext'}],
+          'parts': [
+            {
+              'text':
+                  'Kamu adalah asisten manajemen kos bernama KosBot. $systemContext'
+            }
+          ],
         });
         contents.add({
           'role': 'model',
-          'parts': [{'text': 'Baik, saya siap membantu sebagai asisten manajemen kos Kostify!'}],
+          'parts': [
+            {
+              'text':
+                  'Baik, saya siap membantu sebagai asisten manajemen kos Kostify!'
+            }
+          ],
         });
       }
 
@@ -68,7 +78,9 @@ class ApiService {
         for (final msg in limited) {
           contents.add({
             'role': msg['role'] == 'user' ? 'user' : 'model',
-            'parts': [{'text': msg['content'] ?? ''}],
+            'parts': [
+              {'text': msg['content'] ?? ''}
+            ],
           });
         }
       }
@@ -76,12 +88,15 @@ class ApiService {
       // Pesan baru
       contents.add({
         'role': 'user',
-        'parts': [{'text': message}],
+        'parts': [
+          {'text': message}
+        ],
       });
 
       final response = await http
           .post(
-            Uri.parse('${AppConstants.GEMINI_BASE_URL}?key=${AppConstants.GEMINI_API_KEY}'),
+            Uri.parse(
+                '${AppConstants.GEMINI_BASE_URL}?key=${AppConstants.GEMINI_API_KEY}'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'contents': contents,
@@ -90,8 +105,14 @@ class ApiService {
                 'temperature': 0.7,
               },
               'safetySettings': [
-                {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-                {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
+                {
+                  'category': 'HARM_CATEGORY_HARASSMENT',
+                  'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+                },
+                {
+                  'category': 'HARM_CATEGORY_HATE_SPEECH',
+                  'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+                },
               ],
             }),
           )
@@ -104,16 +125,23 @@ class ApiService {
           return GeminiResult.error('Tidak ada respons dari AI. Coba lagi.');
         }
         return GeminiResult.success(text.toString().trim());
+      } else if (response.statusCode == 404) {
+        return GeminiResult.error(
+            'Model Gemini tidak ditemukan atau sudah tidak tersedia.');
       } else if (response.statusCode == 429) {
-        return GeminiResult.error('Batas permintaan AI tercapai. Coba lagi dalam beberapa menit.');
+        return GeminiResult.error(
+            'Batas permintaan AI tercapai. Coba lagi dalam beberapa menit.');
       } else if (response.statusCode == 403) {
-        return GeminiResult.error('API Key tidak valid. Hubungi administrator.');
+        return GeminiResult.error(
+            'API Key tidak valid. Hubungi administrator.');
       } else {
-        return GeminiResult.error('Layanan AI sementara tidak tersedia (${response.statusCode}).');
+        return GeminiResult.error(
+            'Layanan AI sementara tidak tersedia (${response.statusCode}).');
       }
     } on Exception catch (e) {
       if (e.toString().contains('TimeoutException')) {
-        return GeminiResult.error('Koneksi ke AI timeout. Periksa internet dan coba lagi.');
+        return GeminiResult.error(
+            'Koneksi ke AI timeout. Periksa internet dan coba lagi.');
       }
       return GeminiResult.error('Terjadi kesalahan. Coba lagi.');
     }
@@ -169,7 +197,8 @@ class ApiService {
     required int amount,
   }) async {
     if (!await hasInternet()) return false;
-    if (AppConstants.TELEGRAM_BOT_TOKEN == 'YOUR_TELEGRAM_BOT_TOKEN_HERE') return false;
+    if (AppConstants.TELEGRAM_BOT_TOKEN == 'YOUR_TELEGRAM_BOT_TOKEN_HERE')
+      return false;
 
     final message = '''
 💰 *REMINDER PEMBAYARAN SEWA*
@@ -207,7 +236,8 @@ Segera lakukan pembayaran. Terima kasih!
       return ExchangeRateResult.error('Tidak ada koneksi internet.');
     }
 
-    if (AppConstants.EXCHANGE_RATE_API_KEY == 'YOUR_EXCHANGE_RATE_API_KEY_HERE') {
+    if (AppConstants.EXCHANGE_RATE_API_KEY ==
+        'YOUR_EXCHANGE_RATE_API_KEY_HERE') {
       return ExchangeRateResult.error(
         'API Key nilai tukar belum dikonfigurasi.',
       );
@@ -229,7 +259,8 @@ Segera lakukan pembayaran. Terima kasih!
         }
         return ExchangeRateResult.error('Data kurs tidak tersedia.');
       } else {
-        return ExchangeRateResult.error('Gagal mengambil data kurs (${response.statusCode}).');
+        return ExchangeRateResult.error(
+            'Gagal mengambil data kurs (${response.statusCode}).');
       }
     } on Exception catch (e) {
       if (e.toString().contains('TimeoutException')) {
@@ -242,7 +273,10 @@ Segera lakukan pembayaran. Terima kasih!
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   String _escapeTg(String text) {
-    return text.replaceAll('*', '\\*').replaceAll('_', '\\_').replaceAll('`', '\\`');
+    return text
+        .replaceAll('*', '\\*')
+        .replaceAll('_', '\\_')
+        .replaceAll('`', '\\`');
   }
 
   String _formatDateTime(DateTime dt) {

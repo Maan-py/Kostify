@@ -17,14 +17,15 @@ class AppConstants {
       'ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae'; // SHA-256 of 'admin123'
 
   // ─── API Keys (PLACEHOLDER — ganti dengan key asli) ─────────────────────────
-  static const String GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
+  static String get GEMINI_API_KEY =>
+      dotenv.env['GOOGLE_GEMINI_API_KEY'] ?? 'MISSING_API_KEY';
   static const String EXCHANGE_RATE_API_KEY = 'YOUR_EXCHANGE_RATE_API_KEY_HERE';
   static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
   static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
   static String get GOOGLE_MAPS_API_KEY =>
       dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   static const String EXCHANGE_RATE_BASE_URL =
       'https://v6.exchangerate-api.com/v6/$EXCHANGE_RATE_API_KEY/latest/';
   static const String TELEGRAM_BASE_URL =
