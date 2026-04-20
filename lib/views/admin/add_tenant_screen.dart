@@ -1,9 +1,14 @@
 // lib/views/admin/add_tenant_screen.dart
 
+import 'dart:math' as math;
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -13,6 +18,7 @@ import '../../models/user_model.dart';
 import '../../services/database_helper.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
+import 'ktp_camera_capture_screen.dart';
 import '../auth/login_screen.dart'; // reuse _KostifyTextField
 
 class AddTenantScreen extends StatefulWidget {
@@ -55,6 +61,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   bool _obscurePassword = true;
   bool _obscurePasswordConfirm = true;
   String? _ocrError;
+  Uint8List? _debugImageBytes;
+  Size? _debugImageSize;
+  List<_KtpDebugBox> _debugBoxes = [];
 
   // Available rooms
   List<String> _availableRooms = [];
@@ -146,36 +155,51 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   // ─── OCR KTP ──────────────────────────────────────────────────────────────
 
   Future<void> _scanKTP() async {
+    final source = await _showScanSourcePicker();
+    if (source == null) return;
+
+    String? capturedPath;
+    if (source == ImageSource.camera) {
+      capturedPath = await Get.to<String>(() => const KtpCameraCaptureScreen());
+    } else {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+        maxWidth: 2500,
+      );
+      capturedPath = picked?.path;
+    }
+
+    if (capturedPath == null || capturedPath.isEmpty) return;
+
     setState(() {
       _isScanning = true;
       _ocrError = null;
+      _debugBoxes = [];
     });
 
     try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 90,
-        maxWidth: 1920,
-      );
-      if (picked == null) {
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      // Compress dulu sebelum proses
+      // Compress + auto-fix EXIF rotation (penting untuk foto landscape/portrait)
+      // keepExif: false agar orientasi di-bake ke pixel, bukan cuma metadata
+      // minWidth/minHeight pakai 0 agar tidak distorsi — biarkan proporsional
       final compressed = await FlutterImageCompress.compressWithFile(
-        picked.path,
+        capturedPath,
         quality: AppConstants.IMAGE_QUALITY,
-        minWidth: 800,
-        minHeight: 500,
+        minWidth: 1024,
+        minHeight: 0, // 0 = proporsional, tidak paksa tinggi tertentu
+        rotate: 0, // 0 = ikuti EXIF, library akan auto-correct orientasi
+        keepExif: false, // strip EXIF agar ML Kit tidak salah baca orientasi
       );
 
       if (compressed == null) throw Exception('Gagal memproses gambar');
 
+      final guidedBytes = await _cropToGuideBox(Uint8List.fromList(compressed));
+      await _setDebugImage(guidedBytes);
+
       // Tulis ke file temp untuk ML Kit
-      final tempPath = '${picked.path}_compressed.jpg';
+  final tempPath = '${capturedPath}_compressed.jpg';
       final tempFile = File(tempPath);
-      await tempFile.writeAsBytes(compressed);
+      await tempFile.writeAsBytes(guidedBytes);
 
       // OCR
       final inputImage = InputImage.fromFilePath(tempPath);
@@ -183,16 +207,25 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       try {
         final recognized = await recognizer.processImage(inputImage);
-        _parseKTPText(recognized.text);
+        if (recognized.text.trim().isEmpty) {
+          setState(() {
+            _ocrError =
+                'Gambar tidak terbaca. Pastikan KTP tidak buram, ada cahaya cukup, dan seluruh KTP masuk frame.';
+          });
+        } else {
+          _parseKTPResult(recognized);
+        }
       } finally {
         await recognizer.close();
         // Hapus file temp setelah diproses
         try {
           await tempFile.delete();
         } catch (_) {}
-        try {
-          await File(picked.path).delete();
-        } catch (_) {}
+        if (source == ImageSource.camera) {
+          try {
+            await File(capturedPath).delete();
+          } catch (_) {}
+        }
       }
     } catch (e) {
       setState(() {
@@ -204,76 +237,675 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     }
   }
 
-  void _parseKTPText(String rawText) {
-    // Parsing sederhana berdasarkan kata kunci KTP Indonesia
+  Future<ImageSource?> _showScanSourcePicker() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded),
+                title: const Text('Kamera (dengan frame KTP)'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded),
+                title: const Text('Galeri'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Uint8List> _cropToGuideBox(Uint8List bytes) async {
+    try {
+      final source = img.decodeImage(bytes);
+      if (source == null) return bytes;
+
+      const targetAspect = 1.58; // Rasio KTP approx
+      int cropWidth = (source.width * 0.88).round();
+      int cropHeight = (cropWidth / targetAspect).round();
+
+      final maxHeight = (source.height * 0.72).round();
+      if (cropHeight > maxHeight) {
+        cropHeight = maxHeight;
+        cropWidth = (cropHeight * targetAspect).round();
+      }
+
+      cropWidth = math.min(cropWidth, source.width);
+      cropHeight = math.min(cropHeight, source.height);
+
+      final x = ((source.width - cropWidth) / 2).round().clamp(0, source.width - cropWidth);
+      final y = ((source.height - cropHeight) / 2).round().clamp(0, source.height - cropHeight);
+
+      final cropped = img.copyCrop(
+        source,
+        x: x,
+        y: y,
+        width: cropWidth,
+        height: cropHeight,
+      );
+
+      return Uint8List.fromList(
+        img.encodeJpg(cropped, quality: AppConstants.IMAGE_QUALITY),
+      );
+    } catch (_) {
+      return bytes;
+    }
+  }
+
+  Future<void> _setDebugImage(Uint8List bytes) async {
+    final size = await _decodeImageSize(bytes);
+    if (!mounted) return;
+    setState(() {
+      _debugImageBytes = bytes;
+      _debugImageSize = size;
+    });
+  }
+
+  Future<Size?> _decodeImageSize(Uint8List bytes) async {
+    try {
+      final completer = Completer<Size?>();
+      ui.decodeImageFromList(bytes, (image) {
+        completer.complete(
+          Size(image.width.toDouble(), image.height.toDouble()),
+        );
+      });
+      return completer.future;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Metode ala artikel: cari koordinat label dulu, lalu ambil value yang sejajar.
+  void _parseKTPResult(RecognizedText recognized) {
+    final ocrLines = <_KtpOcrLine>[];
+    for (final block in recognized.blocks) {
+      for (final line in block.lines) {
+        final text = line.text.trim();
+        if (text.isEmpty) continue;
+        ocrLines.add(_KtpOcrLine(text: text, rect: line.boundingBox));
+      }
+    }
+
+    if (ocrLines.isEmpty) {
+      _parseKTPText(recognized.text);
+      return;
+    }
+
+    ocrLines.sort((a, b) => a.rect.top.compareTo(b.rect.top));
+
+    Rect? nikLabelRect;
+    Rect? namaLabelRect;
+    Rect? alamatLabelRect;
+    Rect? rtRwLabelRect;
+    Rect? kelDesaLabelRect;
+    Rect? kecamatanLabelRect;
+    final maxRight = ocrLines
+      .map((line) => line.rect.right)
+      .fold<double>(0, (prev, cur) => cur > prev ? cur : prev);
+
+    for (final line in ocrLines) {
+      final normalized = _normalizeFieldText(line.text);
+      if (nikLabelRect == null && _isNikLabel(normalized)) {
+        nikLabelRect = line.rect;
+      }
+      if (namaLabelRect == null && _isNamaLabel(normalized)) {
+        namaLabelRect = line.rect;
+      }
+      if (alamatLabelRect == null && _isAlamatLabel(normalized)) {
+        alamatLabelRect = line.rect;
+      }
+      if (rtRwLabelRect == null && _isRtRwLabel(normalized)) {
+        rtRwLabelRect = line.rect;
+      }
+      if (kelDesaLabelRect == null && _isKelDesaLabel(normalized)) {
+        kelDesaLabelRect = line.rect;
+      }
+      if (kecamatanLabelRect == null && _isKecamatanLabel(normalized)) {
+        kecamatanLabelRect = line.rect;
+      }
+    }
+
+    var nik = _extractNikByLayout(ocrLines, nikLabelRect);
+    if (nik.isEmpty) {
+      nik = _extractNikFromRawText(recognized.text);
+    }
+    final nama = _extractSingleValueByAlignment(ocrLines, namaLabelRect,
+        isName: true);
+    final alamat = _extractAlamatComposite(
+      lines: ocrLines,
+      alamatLabelRect: alamatLabelRect,
+      rtRwLabelRect: rtRwLabelRect,
+      kelDesaLabelRect: kelDesaLabelRect,
+      kecamatanLabelRect: kecamatanLabelRect,
+      rawText: recognized.text,
+    );
+
+    final debugBoxes = <_KtpDebugBox>[];
+    for (final line in ocrLines) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: line.rect,
+          color: Colors.white70,
+          label: '',
+          strokeWidth: 0.6,
+        ),
+      );
+    }
+
+    if (nikLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: nikLabelRect,
+          color: const Color(0xFF42A5F5),
+          label: 'Label NIK',
+        ),
+      );
+    }
+    if (namaLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: namaLabelRect,
+          color: const Color(0xFF7E57C2),
+          label: 'Label Nama',
+        ),
+      );
+    }
+    if (alamatLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: alamatLabelRect,
+          color: const Color(0xFFFFA726),
+          label: 'Label Alamat',
+        ),
+      );
+    }
+    if (rtRwLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: rtRwLabelRect,
+          color: const Color(0xFFEF5350),
+          label: 'Label RT/RW',
+        ),
+      );
+    }
+    if (kelDesaLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: kelDesaLabelRect,
+          color: const Color(0xFFFF7043),
+          label: 'Label Kel/Desa',
+        ),
+      );
+    }
+    if (kecamatanLabelRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: kecamatanLabelRect,
+          color: const Color(0xFFFF8A65),
+          label: 'Label Kecamatan',
+        ),
+      );
+    }
+
+    final nikRect = _findNikValueRectNearLabel(ocrLines, nikLabelRect, nik) ??
+      _findNikValueRect(ocrLines, nik);
+    if (nikRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: nikRect,
+          color: const Color(0xFF26C6DA),
+          label: 'Value NIK',
+        ),
+      );
+    }
+
+    final namaRect = _findValueRectByText(ocrLines, nama);
+    if (namaRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: namaRect,
+          color: const Color(0xFFAB47BC),
+          label: 'Value Nama',
+        ),
+      );
+    }
+
+    final alamatRect = _buildAlamatAreaRect(
+      alamatLabelRect,
+      kecamatanLabelRect,
+      maxRight,
+    );
+    if (alamatRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: alamatRect,
+          color: const Color(0x33FFA726),
+          label: 'Area Alamat',
+          filled: true,
+          strokeWidth: 1.2,
+        ),
+      );
+    }
+
+    final alamatValueRect = _findValueRectByText(ocrLines, alamat);
+    if (alamatValueRect != null) {
+      debugBoxes.add(
+        _KtpDebugBox(
+          rect: alamatValueRect,
+          color: const Color(0xFFFFB300),
+          label: 'Value Alamat',
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _debugBoxes = debugBoxes;
+      });
+    }
+
+    if (nik.isEmpty && nama.isEmpty && alamat.isEmpty) {
+      _parseKTPText(recognized.text);
+      return;
+    }
+
+    _applyParsedKTPData(nik: nik, nama: nama, alamat: alamat);
+  }
+
+  Rect? _findNikValueRect(List<_KtpOcrLine> lines, String nik) {
+    if (nik.isEmpty) return null;
+    for (final line in lines) {
+      final cleaned = line.text
+          .replaceAll(RegExp(r'[Oo]'), '0')
+          .replaceAll(RegExp(r'[Il]'), '1')
+          .replaceAll(RegExp(r'\D'), '');
+      if (cleaned.contains(nik)) return line.rect;
+    }
+    return null;
+  }
+
+  Rect? _findNikValueRectNearLabel(
+    List<_KtpOcrLine> lines,
+    Rect? nikLabelRect,
+    String nik,
+  ) {
+    if (nik.isEmpty) return null;
+
+    final targetDigits = nik.replaceAll(RegExp(r'\D'), '');
+    if (targetDigits.length != AppConstants.NIK_LENGTH) return null;
+
+    bool hasNikDigits(String text) {
+      final digits = text
+          .replaceAll(RegExp(r'[Oo]'), '0')
+          .replaceAll(RegExp(r'[Il]'), '1')
+          .replaceAll(RegExp(r'\D'), '');
+      return digits == targetDigits || digits.contains(targetDigits);
+    }
+
+    if (nikLabelRect != null) {
+      final nearbyLines = lines.where((line) {
+        final sameColumn = line.rect.left >= nikLabelRect.left - 16;
+        final belowLabel = line.rect.top >= nikLabelRect.bottom - 4;
+        final closeBy = line.rect.top - nikLabelRect.bottom <= 72;
+        return sameColumn && belowLabel && closeBy;
+      }).toList()
+        ..sort((a, b) => a.rect.top.compareTo(b.rect.top));
+
+      for (final line in nearbyLines) {
+        if (hasNikDigits(line.text)) return line.rect;
+      }
+    }
+
+    for (final line in lines) {
+      if (hasNikDigits(line.text)) return line.rect;
+    }
+    return null;
+  }
+
+  Rect? _findValueRectByText(List<_KtpOcrLine> lines, String value) {
+    if (value.trim().isEmpty) return null;
+    final normalizedTarget = value.toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+    for (final line in lines) {
+      final normalizedLine =
+          line.text.toUpperCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (normalizedLine.contains(normalizedTarget) ||
+          normalizedTarget.contains(normalizedLine)) {
+        return line.rect;
+      }
+    }
+    return null;
+  }
+
+  Rect? _buildAlamatAreaRect(
+    Rect? alamatLabelRect,
+    Rect? kecamatanLabelRect,
+    double maxRight,
+  ) {
+    if (alamatLabelRect == null) return null;
+    final left =
+        (alamatLabelRect.left - 12).clamp(0, double.infinity).toDouble();
+    final top =
+        (alamatLabelRect.bottom - 4).clamp(0, double.infinity).toDouble();
+    final right = (maxRight + 8).clamp(left + 1, double.infinity).toDouble();
+        final bottom = (kecamatanLabelRect?.bottom ??
+          (alamatLabelRect.bottom + 180).clamp(top + 1, double.infinity))
+        .toDouble();
+    if (bottom <= top || right <= left) return null;
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  String _normalizeFieldText(String text) {
+    return text
+        .toUpperCase()
+        .replaceAll('0', 'O')
+        .replaceAll('1', 'I')
+        .replaceAll('4', 'A')
+        .replaceAll(RegExp(r'[^A-Z]'), '');
+  }
+
+  bool _isNikLabel(String text) => text.contains('NIK');
+  bool _isNamaLabel(String text) => text.contains('NAMA') || text.contains('NAME');
+  bool _isAlamatLabel(String text) => text.contains('ALAMAT') || text.contains('LAMAT');
+    bool _isRtRwLabel(String text) =>
+      text.contains('RTRW') ||
+      (text.contains('RT') && text.contains('RW')) ||
+      text.contains('RTR');
+    bool _isKelDesaLabel(String text) =>
+      text.contains('KELDESA') ||
+      text.contains('KELURAHAN') ||
+      text.contains('DESA') ||
+      text.contains('KEL');
+    bool _isKecamatanLabel(String text) => text.contains('KECAMATAN');
+
+  bool _looksLikeFieldLabel(String text) {
+    final normalized = _normalizeFieldText(text);
+    return _isNikLabel(normalized) ||
+        _isNamaLabel(normalized) ||
+        _isAlamatLabel(normalized) ||
+      _isRtRwLabel(normalized) ||
+      _isKelDesaLabel(normalized) ||
+      _isKecamatanLabel(normalized) ||
+        normalized.contains('KECAMATAN') ||
+        normalized.contains('KELURAHAN') ||
+        normalized.contains('STATUS') ||
+        normalized.contains('PEKERJAAN') ||
+        normalized.contains('KEWARGANEGARAAN') ||
+        normalized.contains('BERLAKU');
+  }
+
+  String _extractNikByLayout(List<_KtpOcrLine> lines, Rect? nikLabelRect) {
+    String tryExtract(String text) {
+      final normalized = text
+          .replaceAll(RegExp(r'[Oo]'), '0')
+          .replaceAll(RegExp(r'[Il]'), '1');
+      final digits = normalized.replaceAll(RegExp(r'\D'), '');
+      if (digits.length >= 16) return digits.substring(0, 16);
+      return '';
+    }
+
+    if (nikLabelRect != null) {
+      final sameRow = lines.where((line) {
+        final yDelta = (line.rect.center.dy - nikLabelRect.center.dy).abs();
+        return yDelta <= 20 && line.rect.left >= nikLabelRect.right - 8;
+      }).toList()
+        ..sort((a, b) => a.rect.left.compareTo(b.rect.left));
+
+      for (final line in sameRow) {
+        final nik = tryExtract(line.text);
+        if (nik.isNotEmpty) return nik;
+      }
+
+      final belowRow = lines.where((line) {
+        final isBelow = line.rect.top >= nikLabelRect.bottom - 4;
+        final yClose = line.rect.top - nikLabelRect.bottom <= 44;
+        final xAligned = line.rect.left >= nikLabelRect.left - 12;
+        return isBelow && yClose && xAligned;
+      }).toList()
+        ..sort((a, b) => a.rect.top.compareTo(b.rect.top));
+
+      for (final line in belowRow) {
+        final nik = tryExtract(line.text);
+        if (nik.isNotEmpty) return nik;
+      }
+    }
+
+    for (final line in lines) {
+      final nik = tryExtract(line.text);
+      if (nik.isNotEmpty) return nik;
+    }
+    return '';
+  }
+
+  String _extractNikFromRawText(String rawText) {
+    final upper = rawText.toUpperCase();
+    final normalized = upper
+        .replaceAll(RegExp(r'[Oo]'), '0')
+        .replaceAll(RegExp(r'[Il]'), '1');
+
+    final aroundNik = RegExp(r'NIK[^\n\r]{0,40}(\d[\d\s\-:]{14,}\d)')
+        .firstMatch(normalized);
+    if (aroundNik != null) {
+      final candidate = _normalizeNikValue(aroundNik.group(1) ?? '');
+      if (candidate.isNotEmpty) return candidate;
+    }
+
+    final generic = RegExp(r'\d[\d\s\-:]{14,}\d').allMatches(normalized);
+    for (final match in generic) {
+      final candidate = _normalizeNikValue(match.group(0) ?? '');
+      if (candidate.isNotEmpty) return candidate;
+    }
+
+    return '';
+  }
+
+  String _normalizeNikValue(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < AppConstants.NIK_LENGTH) return '';
+    return digits.substring(0, AppConstants.NIK_LENGTH);
+  }
+
+  bool _isValidOcrName(String value) {
+    final trimmed = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (trimmed.isEmpty) return false;
+    if (RegExp(r'\d').hasMatch(trimmed)) return false;
+    return RegExp(r"^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ '\-]*$").hasMatch(trimmed);
+  }
+
+  String _normalizeNameCandidate(String input) {
+    final candidate = input
+        .replaceAll(RegExp(r'^[\s:\-]+'), '')
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trim();
+    if (!_isValidOcrName(candidate)) return '';
+    return _toTitleCase(candidate.replaceAll(RegExp(r'\s+'), ' '));
+  }
+
+  String _extractSingleValueByAlignment(
+    List<_KtpOcrLine> lines,
+    Rect? labelRect, {
+    bool isName = false,
+  }) {
+    if (labelRect == null) return '';
+
+    String clean(String input) {
+      final value = input
+          .replaceAll(RegExp(r'^[\s:\-]+'), '')
+          .replaceAll(RegExp(r'\s{2,}'), ' ')
+          .trim();
+      if (value.isEmpty || _looksLikeFieldLabel(value)) return '';
+      if (isName) {
+        if (!_isValidOcrName(value)) return '';
+        return _toTitleCase(value.replaceAll(RegExp(r'\s+'), ' '));
+      }
+      return value;
+    }
+
+    final sameRow = lines.where((line) {
+      final yDelta = (line.rect.center.dy - labelRect.center.dy).abs();
+      return yDelta <= 20 && line.rect.left >= labelRect.right - 8;
+    }).toList()
+      ..sort((a, b) => a.rect.left.compareTo(b.rect.left));
+
+    for (final line in sameRow) {
+      final value = clean(line.text);
+      if (value.isNotEmpty) return value;
+    }
+
+    final belowRow = lines.where((line) {
+      final isBelow = line.rect.top >= labelRect.bottom - 4;
+      final yClose = line.rect.top - labelRect.bottom <= 44;
+      final xAligned = line.rect.left >= labelRect.left - 12;
+      return isBelow && yClose && xAligned;
+    }).toList()
+      ..sort((a, b) => a.rect.top.compareTo(b.rect.top));
+
+    for (final line in belowRow) {
+      final value = clean(line.text);
+      if (value.isNotEmpty) return value;
+    }
+
+    return '';
+  }
+
+  String _extractAlamatComposite({
+    required List<_KtpOcrLine> lines,
+    required Rect? alamatLabelRect,
+    required Rect? rtRwLabelRect,
+    required Rect? kelDesaLabelRect,
+    required Rect? kecamatanLabelRect,
+    required String rawText,
+  }) {
+    String cleanAddressPart(String input) {
+      return input
+          .replaceAll(RegExp(r'^(ALAMAT|RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\s*[:\-]?\s*', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\s{2,}'), ' ')
+          .trim();
+    }
+
+    String pickPart(Rect? labelRect) {
+      if (labelRect == null) return '';
+      final value = _extractSingleValueByAlignment(lines, labelRect);
+      return cleanAddressPart(value);
+    }
+
+    final alamatMain = pickPart(alamatLabelRect);
+    final rtRw = pickPart(rtRwLabelRect);
+    final kelDesa = pickPart(kelDesaLabelRect);
+    final kecamatan = pickPart(kecamatanLabelRect);
+
+    final rawMap = _extractAlamatComponentsFromRawText(rawText);
+
+    final merged = <String>[
+      if (alamatMain.isNotEmpty) alamatMain else if ((rawMap['alamat'] ?? '').isNotEmpty) rawMap['alamat']!,
+      if (rtRw.isNotEmpty) rtRw else if ((rawMap['rtrw'] ?? '').isNotEmpty) rawMap['rtrw']!,
+      if (kelDesa.isNotEmpty) kelDesa else if ((rawMap['keldesa'] ?? '').isNotEmpty) rawMap['keldesa']!,
+      if (kecamatan.isNotEmpty) kecamatan else if ((rawMap['kecamatan'] ?? '').isNotEmpty) rawMap['kecamatan']!,
+    ];
+
+    return _mergeAddressParts(merged);
+  }
+
+  Map<String, String> _extractAlamatComponentsFromRawText(String rawText) {
     final lines = rawText
         .split('\n')
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty)
         .toList();
-    final fullText = rawText.toUpperCase();
 
-    String nik = '';
-    String nama = '';
+    String grabAfterLabel(String line, String pattern) {
+      return line
+          .replaceAll(RegExp('$pattern\\s*[:\\-]?\\s*', caseSensitive: false), '')
+          .trim();
+    }
+
+    String pickNextIfNeeded(int i, String current) {
+      if (current.isNotEmpty) return current;
+      if (i + 1 >= lines.length) return '';
+      final next = lines[i + 1];
+      if (_looksLikeFieldLabel(next)) return '';
+      return next;
+    }
+
     String alamat = '';
+    String rtrw = '';
+    String keldesa = '';
+    String kecamatan = '';
 
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
-      final lineUpper = line.toUpperCase();
+      final upper = line.toUpperCase();
 
-      // NIK: 16 digit, biasanya baris setelah label "NIK"
-      if (nik.isEmpty) {
-        if (lineUpper.contains('NIK')) {
-          // Cari angka 16 digit di baris ini atau berikutnya
-          final nikMatch = RegExp(r'\b\d{16}\b').firstMatch(line);
-          if (nikMatch != null) {
-            nik = nikMatch.group(0)!;
-          } else if (i + 1 < lines.length) {
-            final nextNik = RegExp(r'\b\d{16}\b').firstMatch(lines[i + 1]);
-            if (nextNik != null) nik = nextNik.group(0)!;
-          }
-        } else {
-          final standaloneNik = RegExp(r'\b\d{16}\b').firstMatch(line);
-          if (standaloneNik != null) nik = standaloneNik.group(0)!;
-        }
+      if (alamat.isEmpty && upper.contains('ALAMAT')) {
+        alamat = pickNextIfNeeded(i, grabAfterLabel(line, r'ALAMAT'));
       }
-
-      // Nama: baris setelah label "NAMA"
-      if (nama.isEmpty && lineUpper.contains('NAMA')) {
-        final afterNama = line
-            .replaceAll(RegExp(r'NAMA\s*[:\-]?\s*', caseSensitive: false), '')
-            .trim();
-        if (afterNama.length >= 3) {
-          nama = _toTitleCase(afterNama);
-        } else if (i + 1 < lines.length) {
-          nama = _toTitleCase(lines[i + 1]);
-        }
+      if (rtrw.isEmpty && (upper.contains('RT/RW') || (upper.contains('RT') && upper.contains('RW')))) {
+        rtrw = pickNextIfNeeded(i, grabAfterLabel(line, r'RT\s*\/?\s*RW'));
       }
-
-      // Alamat: baris setelah label "ALAMAT"
-      if (alamat.isEmpty && lineUpper.contains('ALAMAT')) {
-        final afterAlamat = line
-            .replaceAll(RegExp(r'ALAMAT\s*[:\-]?\s*', caseSensitive: false), '')
-            .trim();
-        if (afterAlamat.length >= 3) {
-          alamat = afterAlamat;
-        } else if (i + 1 < lines.length) {
-          alamat = lines[i + 1];
-        }
+      if (keldesa.isEmpty &&
+          (upper.contains('KEL/DESA') ||
+              upper.contains('KELURAHAN') ||
+              upper.contains('DESA'))) {
+        keldesa = pickNextIfNeeded(
+            i,
+            grabAfterLabel(
+                line, r'KEL\s*\/?\s*DESA|KELURAHAN|DESA'));
+      }
+      if (kecamatan.isEmpty && upper.contains('KECAMATAN')) {
+        kecamatan = pickNextIfNeeded(i, grabAfterLabel(line, r'KECAMATAN'));
       }
     }
 
-    // Isi field yang berhasil diekstrak
+    return {
+      'alamat': alamat,
+      'rtrw': rtrw,
+      'keldesa': keldesa,
+      'kecamatan': kecamatan,
+    };
+  }
+
+  String _mergeAddressParts(List<String> parts) {
+    final unique = <String>[];
+    for (final part in parts) {
+      final cleaned = part
+          .replaceAll(RegExp(r'\s{2,}'), ' ')
+          .trim();
+      if (cleaned.isEmpty) continue;
+      if (!unique.any((p) => p.toUpperCase() == cleaned.toUpperCase())) {
+        unique.add(cleaned);
+      }
+    }
+    return unique.join(', ');
+  }
+
+  void _applyParsedKTPData({
+    required String nik,
+    required String nama,
+    required String alamat,
+  }) {
+    final normalizedNik = _normalizeNikValue(nik);
     bool anyFilled = false;
     setState(() {
-      if (nik.isNotEmpty && _nikCtrl.text.isEmpty) {
-        _nikCtrl.text = nik;
+      final currentNik = _nikCtrl.text.replaceAll(RegExp(r'\D'), '');
+      if (normalizedNik.isNotEmpty && currentNik != normalizedNik) {
+        _nikCtrl.value = TextEditingValue(
+          text: normalizedNik,
+          selection: TextSelection.collapsed(offset: normalizedNik.length),
+        );
         anyFilled = true;
       }
       if (nama.isNotEmpty && _namaCtrl.text.isEmpty) {
         _namaCtrl.text = nama;
         anyFilled = true;
-        // Auto-generate username dari nama (ambil kata pertama, lowercase)
         if (_usernameCtrl.text.isEmpty) {
           final firstWord = nama
               .split(' ')
@@ -306,6 +938,116 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         ),
       );
     }
+  }
+
+  void _parseKTPText(String rawText) {
+    // ── Normalisasi teks OCR ──────────────────────────────────────────────────
+    // OCR sering salah baca karakter: 0↔O, 1↔I, dll.
+    // Gabung semua baris menjadi satu string + pertahankan per-baris untuk parsing
+    final lines = rawText
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    String nik = '';
+    String nama = '';
+    String alamat = '';
+
+    // Helper: ekstrak nilai setelah label (contoh "NAMA : Budi" → "Budi")
+    String _afterLabel(String line, String label) {
+      return line
+          .replaceAll(RegExp(label + r'\s*[:\-]?\s*', caseSensitive: false), '')
+          .trim();
+    }
+
+    // Helper: cek apakah baris mengandung label, tapi ISI-nya ada di baris yg sama atau berikutnya
+    String _extractValue(List<String> lines, int i, String label) {
+      final after = _afterLabel(lines[i], label);
+      if (after.length >= 2) return after;
+      // Nilai di baris berikutnya (skip baris yang kelihatan seperti label lain)
+      if (i + 1 < lines.length) {
+        final next = lines[i + 1].trim();
+        // Baris berikutnya bukan label KTP lain
+        final isAnotherLabel = RegExp(
+                r'^(NIK|NAMA|ALAMAT|RT|RW|KELURAHAN|KECAMATAN|AGAMA|STATUS|PEKERJAAN|KEWARGANEGARAAN|BERLAKU)',
+                caseSensitive: false)
+            .hasMatch(next);
+        if (!isAnotherLabel && next.length >= 2) return next;
+      }
+      return '';
+    }
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final lineUpper = line.toUpperCase();
+
+      // ── NIK ──────────────────────────────────────────────────────────────
+      // KTP: NIK = 16 digit. OCR kadang sisipkan spasi (3201 0604 ...) atau
+      // baca angka 0 sebagai O/o. Normalize dulu.
+      if (nik.isEmpty) {
+        // Ambil semua karakter digit dari baris (ganti O→0, I→1 di konteks angka)
+        final digitOnly = line
+            .replaceAll(RegExp(r'[Oo]'), '0')
+            .replaceAll(RegExp(r'[Il]'), '1')
+            .replaceAll(RegExp(r'[^\d]'), '');
+        if (digitOnly.length == 16) {
+          nik = digitOnly;
+        } else if (lineUpper.contains('NIK')) {
+          // Coba baris berikutnya
+          if (i + 1 < lines.length) {
+            final nextDigit = lines[i + 1]
+                .replaceAll(RegExp(r'[Oo]'), '0')
+                .replaceAll(RegExp(r'[Il]'), '1')
+                .replaceAll(RegExp(r'[^\d]'), '');
+            if (nextDigit.length == 16) nik = nextDigit;
+          }
+          // Fallback: ada 16 digit berurutan di baris ini (dengan separator)
+          if (nik.isEmpty) {
+            final m = RegExp(r'\d[\d\s\-]{14,}\d').firstMatch(line);
+            if (m != null) {
+              final cleaned = m.group(0)!.replaceAll(RegExp(r'\D'), '');
+              if (cleaned.length == 16) nik = cleaned;
+            }
+          }
+        }
+      }
+
+      // ── Nama ─────────────────────────────────────────────────────────────
+      // Label bisa: "Nama", "NAMA", "Name" (salah baca)
+      if (nama.isEmpty &&
+          RegExp(r'^N[aA][mMnN][aAeE]', caseSensitive: false)
+              .hasMatch(lineUpper)) {
+        final val = _extractValue(lines, i, r'N[aA][mMnN][aAeE]');
+        final normalizedName = _normalizeNameCandidate(val);
+        if (normalizedName.isNotEmpty && !val.toUpperCase().contains('NIK')) {
+          nama = normalizedName;
+        }
+      }
+
+      // ── Alamat utama ─────────────────────────────────────────────────────
+      if (alamat.isEmpty && lineUpper.contains('ALAMAT')) {
+        final val = _extractValue(lines, i, r'ALAMAT');
+        if (val.length >= 3) {
+          alamat = val;
+        }
+      }
+    }
+
+    final rawAlamat = _extractAlamatComponentsFromRawText(rawText);
+    final mergedAlamat = _mergeAddressParts([
+      if (alamat.isNotEmpty) alamat,
+      if ((rawAlamat['alamat'] ?? '').isNotEmpty) rawAlamat['alamat']!,
+      if ((rawAlamat['rtrw'] ?? '').isNotEmpty) rawAlamat['rtrw']!,
+      if ((rawAlamat['keldesa'] ?? '').isNotEmpty) rawAlamat['keldesa']!,
+      if ((rawAlamat['kecamatan'] ?? '').isNotEmpty) rawAlamat['kecamatan']!,
+    ]);
+
+    if (mergedAlamat.isNotEmpty) {
+      alamat = mergedAlamat;
+    }
+
+    _applyParsedKTPData(nik: nik, nama: nama, alamat: alamat);
   }
 
   String _toTitleCase(String s) {
@@ -564,6 +1306,14 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ocrError: _ocrError,
           onScan: _scanKTP,
         ),
+        if (_debugImageBytes != null) ...[
+          const SizedBox(height: 14),
+          _OCRDebugOverlayCard(
+            imageBytes: _debugImageBytes!,
+            imageSize: _debugImageSize,
+            boxes: _debugBoxes,
+          ),
+        ],
         const SizedBox(height: 24),
         _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
         const SizedBox(height: 12),
@@ -604,20 +1354,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           inputFormatters: [
             LengthLimitingTextInputFormatter(200),
             FilteringTextInputFormatter.deny(RegExp(r'''['";\\<>]''')),
-          ],
-          validator: (v) => null,
-        ),
-        const SizedBox(height: 14),
-        _FormField(
-          controller: _teleponCtrl,
-          label: 'Nomor Telepon',
-          hint: '08xxxxxxxxxx',
-          icon: Icons.phone_outlined,
-          maxLength: 15,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
-            LengthLimitingTextInputFormatter(15),
           ],
           validator: (v) => null,
         ),
@@ -737,6 +1473,22 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               },
             ),
           ),
+        ),
+        const SizedBox(height: 18),
+        _SectionHeader(title: 'Data Kontak', icon: Icons.phone_outlined),
+        const SizedBox(height: 12),
+        _FormField(
+          controller: _teleponCtrl,
+          label: 'Nomor Telepon',
+          hint: '08xxxxxxxxxx',
+          icon: Icons.phone_outlined,
+          maxLength: 15,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
+            LengthLimitingTextInputFormatter(15),
+          ],
+          validator: (v) => null,
         ),
       ],
     );
@@ -891,6 +1643,29 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }
 }
 
+class _KtpOcrLine {
+  final String text;
+  final Rect rect;
+
+  const _KtpOcrLine({required this.text, required this.rect});
+}
+
+class _KtpDebugBox {
+  final Rect rect;
+  final Color color;
+  final String label;
+  final bool filled;
+  final double strokeWidth;
+
+  const _KtpDebugBox({
+    required this.rect,
+    required this.color,
+    required this.label,
+    this.filled = false,
+    this.strokeWidth = 1.4,
+  });
+}
+
 // ─── KTP Scan Card ────────────────────────────────────────────────────────────
 
 class _KTPScanCard extends StatelessWidget {
@@ -990,6 +1765,181 @@ class _KTPScanCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _OCRDebugOverlayCard extends StatelessWidget {
+  final Uint8List imageBytes;
+  final Size? imageSize;
+  final List<_KtpDebugBox> boxes;
+
+  const _OCRDebugOverlayCard({
+    required this.imageBytes,
+    required this.imageSize,
+    required this.boxes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = (imageSize != null && imageSize!.height > 0)
+        ? imageSize!.width / imageSize!.height
+        : 1.58;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Debug OCR Overlay',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A2E),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Kotak menunjukkan label dan area value yang dipakai parser.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: AspectRatio(
+              aspectRatio: ratio,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.memory(imageBytes, fit: BoxFit.cover),
+                  CustomPaint(
+                    painter: _OCRDebugOverlayPainter(
+                      sourceSize: imageSize,
+                      boxes: boxes,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: const [
+              _DebugLegendChip(color: Color(0xFF42A5F5), label: 'Label'),
+              _DebugLegendChip(color: Color(0xFF26C6DA), label: 'Value'),
+              _DebugLegendChip(color: Color(0xFFFFA726), label: 'Area'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DebugLegendChip extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _DebugLegendChip({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OCRDebugOverlayPainter extends CustomPainter {
+  final Size? sourceSize;
+  final List<_KtpDebugBox> boxes;
+
+  _OCRDebugOverlayPainter({required this.sourceSize, required this.boxes});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (sourceSize == null || sourceSize!.width == 0 || sourceSize!.height == 0) {
+      return;
+    }
+
+    final scaleX = size.width / sourceSize!.width;
+    final scaleY = size.height / sourceSize!.height;
+
+    for (final box in boxes) {
+      final scaled = Rect.fromLTRB(
+        box.rect.left * scaleX,
+        box.rect.top * scaleY,
+        box.rect.right * scaleX,
+        box.rect.bottom * scaleY,
+      );
+
+      if (box.filled) {
+        final fillPaint = Paint()
+          ..style = PaintingStyle.fill
+          ..color = box.color;
+        canvas.drawRect(scaled, fillPaint);
+      }
+
+      final strokePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..color = box.color
+        ..strokeWidth = box.strokeWidth;
+      canvas.drawRect(scaled, strokePaint);
+
+      if (box.label.isNotEmpty) {
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: box.label,
+            style: TextStyle(
+              color: box.color,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          maxLines: 1,
+          textDirection: ui.TextDirection.ltr,
+        )..layout(maxWidth: size.width - 8);
+
+        final dy = (scaled.top - 12).clamp(2, size.height - 12).toDouble();
+        final dx = (scaled.left + 2).clamp(2, size.width - 4).toDouble();
+        textPainter.paint(canvas, Offset(dx, dy));
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OCRDebugOverlayPainter oldDelegate) {
+    return oldDelegate.sourceSize != sourceSize || oldDelegate.boxes != boxes;
   }
 }
 
