@@ -152,12 +152,12 @@ class ApiService {
     required DateTime timestamp,
   }) async {
     print("DEBUG SOS: Token = ${AppConstants.TELEGRAM_BOT_TOKEN}");
-  print("DEBUG SOS: ChatID = ${AppConstants.TELEGRAM_CHAT_ID}");
+    print("DEBUG SOS: ChatID = ${AppConstants.TELEGRAM_CHAT_ID}");
     if (!await hasInternet()) return false;
 
     if (AppConstants.TELEGRAM_BOT_TOKEN == 'MISSING_BOT_TOKEN' ||
         AppConstants.TELEGRAM_CHAT_ID == 'MISSING_CHAT_ID') {
-      return false; 
+      return false;
     }
 
     final message = '''
@@ -236,8 +236,7 @@ Segera lakukan pembayaran. Terima kasih!
       return ExchangeRateResult.error('Tidak ada koneksi internet.');
     }
 
-    if (AppConstants.EXCHANGE_RATE_API_KEY ==
-        'MISSING_API_KEY') {
+    if (AppConstants.EXCHANGE_RATE_API_KEY == 'MISSING_API_KEY') {
       return ExchangeRateResult.error(
         'API Key nilai tukar belum dikonfigurasi.',
       );
@@ -288,14 +287,14 @@ Segera lakukan pembayaran. Terima kasih!
 
   String _formatRupiah(int amount) {
     final str = amount.toString();
-    final buffer = StringBuffer('Rp ');
+    final buffer = StringBuffer(); // Mulai dari string kosong
     int counter = 0;
     for (int i = str.length - 1; i >= 0; i--) {
       if (counter > 0 && counter % 3 == 0) buffer.write('.');
       buffer.write(str[i]);
       counter++;
     }
-    return buffer.toString().split('').reversed.join();
+    return 'Rp ${buffer.toString().split('').reversed.join()}';
   }
 }
 
