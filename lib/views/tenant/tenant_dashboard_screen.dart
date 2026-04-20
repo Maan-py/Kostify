@@ -19,6 +19,7 @@ import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'tools_screen.dart';
 import 'tenant_map_screen.dart';
+import '../../models/payment_model.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
   const TenantDashboardScreen({super.key});
@@ -706,13 +707,17 @@ class _PaymentCardState extends State<_PaymentCard> {
   }
 }
 
+
 class _PaymentRow extends StatelessWidget {
-  final dynamic payment;
+  // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca
+  final PaymentModel payment; 
   const _PaymentRow({required this.payment});
 
   @override
   Widget build(BuildContext context) {
-    final isPaid = payment.status.value == 'paid';
+    // UPDATE: Bandingkan langsung dengan enum, lebih aman dan efisien
+    final isPaid = payment.status == PaymentStatus.paid; 
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
