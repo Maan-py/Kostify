@@ -190,39 +190,39 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                   ),
                 ),
               ),
-              if (_isSaved) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1BC0BA).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF1BC0BA).withOpacity(0.3)),
-                  ),
-                  // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, // Ini kuncinya!
-                    children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Color(0xFF1BC0BA)),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'Sudah disimpan.',
-                          style: const TextStyle(
-                            color: Color(0xFF0F6E56),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              // if (_isSaved) ...[
+              //   const SizedBox(height: 16),
+              //   Container(
+              //     width: double.infinity,
+              //     padding: const EdgeInsets.all(16),
+              //     decoration: BoxDecoration(
+              //       color: const Color(0xFF1BC0BA).withOpacity(0.08),
+              //       borderRadius: BorderRadius.circular(14),
+              //       border: Border.all(
+              //           color: const Color(0xFF1BC0BA).withOpacity(0.3)),
+              //     ),
+              //     // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
+              //     child: Row(
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       mainAxisSize: MainAxisSize.min, // Ini kuncinya!
+              //       children: [
+              //         const Icon(Icons.check_circle_rounded,
+              //             color: Color(0xFF1BC0BA)),
+              //         const SizedBox(width: 8),
+              //         Flexible(
+              //           child: Text(
+              //             'Sudah disimpan.',
+              //             style: const TextStyle(
+              //               color: Color(0xFF0F6E56),
+              //               fontWeight: FontWeight.w600,
+              //             ),
+              //             overflow: TextOverflow.ellipsis,
+              //           ),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ],
             ],
           ),
         ),
