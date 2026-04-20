@@ -656,7 +656,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     if (nikLabelRect != null) {
       final sameRow = lines.where((line) {
         final yDelta = (line.rect.center.dy - nikLabelRect.center.dy).abs();
-        return yDelta <= 20 && line.rect.left >= nikLabelRect.right - 8;
+        return yDelta <= 30 && line.rect.left >= nikLabelRect.right - 8;
       }).toList()
         ..sort((a, b) => a.rect.left.compareTo(b.rect.left));
 
@@ -709,10 +709,16 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }
 
   String _normalizeNikValue(String value) {
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < AppConstants.NIK_LENGTH) return '';
-    return digits.substring(0, AppConstants.NIK_LENGTH);
-  }
+  final cleaned = value
+      .replaceAll(RegExp(r'[OoDd]'), '0')
+      .replaceAll(RegExp(r'[Il|]'), '1')
+      .replaceAll(RegExp(r'[bB]'), '6')
+      .replaceAll(RegExp(r'[sS]'), '5')
+      .replaceAll(RegExp(r'\D'), ''); // Hapus semua yang bukan angka setelah konversi
+  
+  if (cleaned.length < 16) return '';
+  return cleaned.substring(0, 16);
+}
 
   bool _isValidOcrName(String value) {
     final trimmed = value.trim().replaceAll(RegExp(r'\s+'), ' ');
