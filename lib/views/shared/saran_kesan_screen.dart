@@ -38,11 +38,21 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
 
   Future<void> _loadSaved() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getBool(_keySaved) ?? false;
-    if (saved) {
-      _kesanCtrl.text = prefs.getString(_keyKesan) ?? '';
-      _saranCtrl.text = prefs.getString(_keySaran) ?? '';
-      setState(() => _isSaved = true);
+  // Ambil ID User yang sedang login
+  final userId = AuthController.to.currentUser.value?.id ?? 0;
+  
+  // Tambahkan ID ke dalam kunci
+  final saved = prefs.getBool('${_keySaved}_$userId') ?? false;
+  
+  if (saved) {
+    _kesanCtrl.text = prefs.getString('${_keyKesan}_$userId') ?? '';
+    _saranCtrl.text = prefs.getString('${_keySaran}_$userId') ?? '';
+    setState(() => _isSaved = true);
+  } else {
+    // Reset form jika user baru ini belum pernah mengisi
+    _kesanCtrl.clear();
+    _saranCtrl.clear();
+    setState(() => _isSaved = false);
     }
   }
 
@@ -55,14 +65,17 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
 
   void _simpan() async {
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyKesan, _kesanCtrl.text);
-    await prefs.setString(_keySaran, _saranCtrl.text);
-    await prefs.setBool(_keySaved, true);
+  final prefs = await SharedPreferences.getInstance();
+  final userId = AuthController.to.currentUser.value?.id ?? 0;
 
-    setState(() => _isSaved = true);
+  // Simpan dengan kunci yang unik per user
+  await prefs.setString('${_keyKesan}_$userId', _kesanCtrl.text);
+  await prefs.setString('${_keySaran}_$userId', _saranCtrl.text);
+  await prefs.setBool('${_keySaved}_$userId', true);
+
+  setState(() => _isSaved = true);
     if (mounted)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -190,39 +203,39 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                   ),
                 ),
               ),
-              if (_isSaved) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1BC0BA).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF1BC0BA).withOpacity(0.3)),
-                  ),
-                  // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, // Ini kuncinya!
-                    children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Color(0xFF1BC0BA)),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'Sudah disimpan.',
-                          style: const TextStyle(
-                            color: Color(0xFF0F6E56),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              // if (_isSaved) ...[
+              //   const SizedBox(height: 16),
+              //   Container(
+              //     width: double.infinity,
+              //     padding: const EdgeInsets.all(16),
+              //     decoration: BoxDecoration(
+              //       color: const Color(0xFF1BC0BA).withOpacity(0.08),
+              //       borderRadius: BorderRadius.circular(14),
+              //       border: Border.all(
+              //           color: const Color(0xFF1BC0BA).withOpacity(0.3)),
+              //     ),
+              //     // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
+              //     child: Row(
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       mainAxisSize: MainAxisSize.min, // Ini kuncinya!
+              //       children: [
+              //         const Icon(Icons.check_circle_rounded,
+              //             color: Color(0xFF1BC0BA)),
+              //         const SizedBox(width: 8),
+              //         Flexible(
+              //           child: Text(
+              //             'Sudah disimpan.',
+              //             style: const TextStyle(
+              //               color: Color(0xFF0F6E56),
+              //               fontWeight: FontWeight.w600,
+              //             ),
+              //             overflow: TextOverflow.ellipsis,
+              //           ),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ],
             ],
           ),
         ),
