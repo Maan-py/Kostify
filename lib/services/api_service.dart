@@ -193,6 +193,7 @@ class ApiService {
   /// Telegram notification untuk reminder pembayaran
   Future<bool> sendPaymentReminder({
     required String tenantName,
+    required String nomorKamar,
     required String bulan,
     required int amount,
   }) async {
@@ -204,10 +205,11 @@ class ApiService {
 💰 *REMINDER PEMBAYARAN SEWA*
 
 👤 Penghuni: *${_escapeTg(tenantName)}*
+🚪 Kamar: *${_escapeTg(nomorKamar.isNotEmpty ? nomorKamar : '-')} *
 📅 Bulan: $bulan
 💵 Tagihan: ${_formatRupiah(amount)}
 
-Segera lakukan pembayaran. Terima kasih!
+Ingatkan *${_escapeTg(tenantName)}*, kamar *${_escapeTg(nomorKamar.isNotEmpty ? nomorKamar : '-')}* untuk membayar. Terima kasih!
 — Kostify
 ''';
 

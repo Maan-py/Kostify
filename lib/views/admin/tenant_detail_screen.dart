@@ -193,6 +193,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     setState(() => _isSendingReminder = true);
     final latest = pendingPayments.first;
     final sent = await _api.sendPaymentReminder(
+      nomorKamar: _tenant.nomorKamar ?? '-',
       tenantName: _tenant.namaLengkap ?? _tenant.username,
       bulan: latest.bulan,
       amount: latest.amount,
