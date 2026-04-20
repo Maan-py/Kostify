@@ -151,10 +151,13 @@ class ApiService {
     required String nomorKamar,
     required DateTime timestamp,
   }) async {
+    print("DEBUG SOS: Token = ${AppConstants.TELEGRAM_BOT_TOKEN}");
+  print("DEBUG SOS: ChatID = ${AppConstants.TELEGRAM_CHAT_ID}");
     if (!await hasInternet()) return false;
 
-    if (AppConstants.TELEGRAM_BOT_TOKEN == 'YOUR_TELEGRAM_BOT_TOKEN_HERE') {
-      return false; // Placeholder — silent fail
+    if (AppConstants.TELEGRAM_BOT_TOKEN == 'MISSING_BOT_TOKEN' ||
+        AppConstants.TELEGRAM_CHAT_ID == 'MISSING_CHAT_ID') {
+      return false; 
     }
 
     final message = '''

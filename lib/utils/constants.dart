@@ -21,15 +21,17 @@ class AppConstants {
       dotenv.env['GOOGLE_GEMINI_API_KEY'] ?? 'MISSING_API_KEY';
   static String get EXCHANGE_RATE_API_KEY =>
       dotenv.env['EXCHANGE_RATE_API_KEY'] ?? 'MISSING_API_KEY';
-  static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
-  static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
+  static String get TELEGRAM_BOT_TOKEN =>
+      dotenv.env['TELEGRAM_BOT_TOKEN'] ?? 'MISSING_BOT_TOKEN';
+  static String get TELEGRAM_CHAT_ID =>
+      dotenv.env['TELEGRAM_CHAT_ID'] ?? 'MISSING_CHAT_ID';
   static String get GOOGLE_MAPS_API_KEY =>
       dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   static String get EXCHANGE_RATE_BASE_URL =>
       'https://v6.exchangerate-api.com/v6/$EXCHANGE_RATE_API_KEY/latest/';
-  static const String TELEGRAM_BASE_URL =
+  static String get TELEGRAM_BASE_URL =>
       'https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage';
 
   // ─── Kos Info (bisa diedit admin nantinya, untuk sekarang hardcode) ──────────
