@@ -26,8 +26,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
 
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
-  static const _dosen = 'Nama Dosen Pengampu'; // Ganti sesuai dosen asli
-  static const _semester = 'Semester Gasal 2025/2026';
+  static const _dosen = 'Bagus Muhammad Akbar, S.ST., M.Kom'; // Ganti sesuai dosen asli
+  static const _semester = 'Semester Genap 2025/2026';
 
   @override
   void initState() {
