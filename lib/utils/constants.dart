@@ -32,10 +32,10 @@ class AppConstants {
       'https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage';
 
   // ─── Kos Info (bisa diedit admin nantinya, untuk sekarang hardcode) ──────────
-  static const String KOS_NAME = 'Kos Bahagia Sejahtera';
-  static const String KOS_ADDRESS = 'Jl. Contoh No. 123, Semarang, Jawa Tengah';
-  static const double KOS_LATITUDE = -7.005145; // Koordinat Semarang
-  static const double KOS_LONGITUDE = 110.438125;
+  static const String KOS_NAME = 'Kos Bela Negara';
+  static const String KOS_ADDRESS = 'Jl. Babarsari No. 2, Tambakbayan, Caturtunggal, Kecamatan Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta ';
+  static const double KOS_LATITUDE = -7.782289529024553;
+  static const double KOS_LONGITUDE = 110.41590797374627;
 
   // ─── Database ────────────────────────────────────────────────────────────────
   static const String DB_NAME = 'kostify.db';
