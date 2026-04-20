@@ -201,10 +201,13 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                     border: Border.all(
                         color: const Color(0xFF1BC0BA).withOpacity(0.3)),
                   ),
+                  // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min, // Ini kuncinya!
                     children: [
-                      const Icon(Icons.check_circle_rounded, color: Color(0xFF1BC0BA)),
+                      const Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF1BC0BA)),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -213,7 +216,7 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                             color: Color(0xFF0F6E56),
                             fontWeight: FontWeight.w600,
                           ),
-                          overflow: TextOverflow.ellipsis, // Opsional: Tambahkan titik-titik jika tetap tidak muat
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
