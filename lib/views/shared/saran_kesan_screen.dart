@@ -26,7 +26,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
 
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
-  static const _dosen = 'Bagus Muhammad Akbar, S.ST., M.Kom'; // Ganti sesuai dosen asli
+  static const _dosen =
+      'Bagus Muhammad Akbar, S.ST., M.Kom'; // Ganti sesuai dosen asli
   static const _semester = 'Semester Genap 2025/2026';
 
   @override
@@ -62,15 +63,17 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
     await prefs.setBool(_keySaved, true);
 
     setState(() => _isSaved = true);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
-        backgroundColor: const Color(0xFF1BC0BA),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
+          backgroundColor: const Color(0xFF1BC0BA),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
   }
 
   @override
@@ -78,7 +81,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Saran & Kesan TPM', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Saran & Kesan TPM',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Color(0xFF8095E4)),
@@ -97,14 +101,16 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF8095E4).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF8095E4).withOpacity(0.2)),
+                  border: Border.all(
+                      color: const Color(0xFF8095E4).withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.school_rounded, color: Color(0xFF8095E4), size: 20),
+                        const Icon(Icons.school_rounded,
+                            color: Color(0xFF8095E4), size: 20),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -135,7 +141,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 maxLines: 5,
                 maxLength: AppConstants.MAX_SARAN_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_SARAN_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_SARAN_LENGTH),
                 ],
                 validator: AppValidators.validateSaranKesan,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
@@ -153,29 +160,33 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                 maxLines: 5,
                 maxLength: AppConstants.MAX_SARAN_LENGTH,
                 inputFormatters: [
-                  LengthLimitingTextInputFormatter(AppConstants.MAX_SARAN_LENGTH),
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.MAX_SARAN_LENGTH),
                 ],
                 validator: AppValidators.validateSaranKesan,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
                 decoration: _inputDecoration(
-                  hint: 'Tulis saran kamu untuk pengembangan mata kuliah ini...',
+                  hint:
+                      'Tulis saran kamu untuk pengembangan mata kuliah ini...',
                 ),
               ),
               const SizedBox(height: 28),
 
-            SizedBox(
+              SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: _simpan,
                   icon: const Icon(Icons.save_rounded, size: 20),
                   label: const Text('Simpan Saran & Kesan',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8095E4),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
               ),
@@ -187,18 +198,24 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF1BC0BA).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF1BC0BA).withOpacity(0.3)),
+                    border: Border.all(
+                        color: const Color(0xFF1BC0BA).withOpacity(0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_rounded, color: Color(0xFF1BC0BA)),
-                      SizedBox(width: 8),
-                      Text('Sudah disimpan. Kamu bisa edit lagi kapan saja.',
-                          style: TextStyle(
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF1BC0BA)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Sudah disimpan.',
+                          style: const TextStyle(
                             color: Color(0xFF0F6E56),
                             fontWeight: FontWeight.w600,
-                          )),
+                          ),
+                          overflow: TextOverflow.ellipsis, // Opsional: Tambahkan titik-titik jika tetap tidak muat
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -273,10 +290,12 @@ class _InfoRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 68,
-          child: Text('$label:', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          child: Text('$label:',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
         ),
         Expanded(
-          child: Text(value, style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E))),
+          child: Text(value,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A2E))),
         ),
       ],
     );
