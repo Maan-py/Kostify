@@ -19,21 +19,23 @@ class AppConstants {
   // ─── API Keys (PLACEHOLDER — ganti dengan key asli) ─────────────────────────
   static String get GEMINI_API_KEY =>
       dotenv.env['GOOGLE_GEMINI_API_KEY'] ?? 'MISSING_API_KEY';
-  static const String EXCHANGE_RATE_API_KEY = 'YOUR_EXCHANGE_RATE_API_KEY_HERE';
+  static String get EXCHANGE_RATE_API_KEY =>
+      dotenv.env['EXCHANGE_RATE_API_KEY'] ?? 'MISSING_API_KEY';
   static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
   static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
   static String get GOOGLE_MAPS_API_KEY =>
       dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-  static const String EXCHANGE_RATE_BASE_URL =
+  static String get EXCHANGE_RATE_BASE_URL =>
       'https://v6.exchangerate-api.com/v6/$EXCHANGE_RATE_API_KEY/latest/';
   static const String TELEGRAM_BASE_URL =
       'https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage';
 
   // ─── Kos Info (bisa diedit admin nantinya, untuk sekarang hardcode) ──────────
   static const String KOS_NAME = 'Kos Bela Negara';
-  static const String KOS_ADDRESS = 'Jl. Babarsari No. 2, Tambakbayan, Caturtunggal, Kecamatan Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta ';
+  static const String KOS_ADDRESS =
+      'Jl. Babarsari No. 2, Tambakbayan, Caturtunggal, Kecamatan Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta ';
   static const double KOS_LATITUDE = -7.782289529024553;
   static const double KOS_LONGITUDE = 110.41590797374627;
 
@@ -52,7 +54,6 @@ class AppConstants {
   static const double SHAKE_THRESHOLD = 15.0; // m/s² threshold guncangan
   static const int SHAKE_COOLDOWN_SECONDS = 5; // Cooldown antar notif darurat
   static const int SHAKE_COUNT_REQUIRED = 5; // Jumlah shake sebelum trigger
-  
 
   // ─── Input Validation ────────────────────────────────────────────────────────
   static const int MAX_USERNAME_LENGTH = 30;

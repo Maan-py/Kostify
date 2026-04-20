@@ -234,7 +234,7 @@ Segera lakukan pembayaran. Terima kasih!
     }
 
     if (AppConstants.EXCHANGE_RATE_API_KEY ==
-        'YOUR_EXCHANGE_RATE_API_KEY_HERE') {
+        'MISSING_API_KEY') {
       return ExchangeRateResult.error(
         'API Key nilai tukar belum dikonfigurasi.',
       );
