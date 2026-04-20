@@ -114,6 +114,12 @@ class AppValidators {
     if (trimmed.length < 2) {
       return 'Nama terlalu pendek';
     }
+    if (RegExp(r'\d').hasMatch(trimmed)) {
+      return 'Nama hanya boleh berisi huruf';
+    }
+    if (!RegExp(r"^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ '\-]*$").hasMatch(trimmed)) {
+      return 'Nama hanya boleh berisi huruf';
+    }
     if (_isDangerous(trimmed)) {
       return 'Nama mengandung karakter tidak valid';
     }
