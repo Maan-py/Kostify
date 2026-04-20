@@ -51,7 +51,8 @@ class AppConstants {
   // ─── Sensor ──────────────────────────────────────────────────────────────────
   static const double SHAKE_THRESHOLD = 15.0; // m/s² threshold guncangan
   static const int SHAKE_COOLDOWN_SECONDS = 5; // Cooldown antar notif darurat
-  static const int SHAKE_COUNT_REQUIRED = 3; // Jumlah shake sebelum trigger
+  static const int SHAKE_COUNT_REQUIRED = 5; // Jumlah shake sebelum trigger
+  
 
   // ─── Input Validation ────────────────────────────────────────────────────────
   static const int MAX_USERNAME_LENGTH = 30;

@@ -21,7 +21,7 @@ class SensorService {
   DateTime? _lastShakeTime;
   int _shakeCount = 0;
   DateTime? _shakeWindowStart;
-  static const _shakeWindowMs = 1500; // Window deteksi shake (ms)
+  static const _shakeWindowMs = 2500; // Window deteksi shake (ms)
 
   /// Mulai listen accelerometer untuk deteksi guncangan darurat.
   void startShakeDetection(ShakeCallback onShake) {
