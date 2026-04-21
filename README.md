@@ -105,6 +105,9 @@ Simpan di `assets/fonts/`:
 flutter pub get
 ```
 
+> Catatan: fitur broadcast yang ditambahkan di aplikasi ini memakai SQLite + local notification.
+> Jika ingin broadcast benar-benar masuk ke semua HP tenant secara real-time, perlu backend bersama atau Firebase Cloud Messaging.
+
 ### 7. Android Permissions
 
 Di `android/app/src/main/AndroidManifest.xml`, tambahkan:
@@ -157,6 +160,7 @@ minSdkVersion 23  // Wajib untuk biometric & local_auth
 | Flappy Bird | ✅ | Dual mode: tap + gyroscope |
 | Foto Profil | ✅ | Upload dari kamera/galeri, compress |
 | Saran & Kesan TPM | ✅ | Form textarea, validasi lengkap |
+| Broadcast Tenant | ✅ | Compose broadcast, inbox tenant, local notification |
 | Error Handling | ✅ | Anti SQL injection, paste anomali |
 
 ---
