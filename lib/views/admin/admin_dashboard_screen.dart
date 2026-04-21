@@ -6,6 +6,7 @@ import '../../controllers/auth_controller.dart';
 import '../../services/database_helper.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
+import 'admin_broadcast_screen.dart';
 import 'tenant_list_screen.dart';
 import 'admin_chat_screen.dart';
 
@@ -17,7 +18,6 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  final _db = DatabaseHelper();
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
@@ -42,7 +42,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded, color: Color(0xFF8095E4)),
+            selectedIcon:
+                Icon(Icons.dashboard_rounded, color: Color(0xFF8095E4)),
             label: 'Dashboard',
           ),
           NavigationDestination(
@@ -52,7 +53,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           NavigationDestination(
             icon: Icon(Icons.smart_toy_outlined),
-            selectedIcon: Icon(Icons.smart_toy_rounded, color: Color(0xFF8095E4)),
+            selectedIcon:
+                Icon(Icons.smart_toy_rounded, color: Color(0xFF8095E4)),
             label: 'Laporan & AI',
           ),
           NavigationDestination(
@@ -89,7 +91,11 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
   Future<void> _loadStats() async {
     setState(() => _isLoading = true);
     final stats = await _db.getDashboardStats();
-    if (mounted) setState(() { _stats = stats; _isLoading = false; });
+    if (mounted)
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
   }
 
   @override
@@ -109,18 +115,25 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                 backgroundColor: Colors.white,
                 elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
-                  titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  titlePadding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   title: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Selamat datang,',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.w400),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w400),
                       ),
                       const Text(
                         'Administrator 👋',
-                        style: TextStyle(fontSize: 15, color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF1A1A2E),
+                            fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -128,7 +141,9 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
               ),
               if (_isLoading)
                 const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF8095E4))),
+                  child: Center(
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF8095E4))),
                 )
               else
                 SliverPadding(
@@ -202,8 +217,8 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                               color: const Color(0xFF1BC0BA),
                               onTap: () {
                                 // Switch ke tab penghuni
-                                final state = context
-                                    .findAncestorStateOfType<_AdminDashboardScreenState>();
+                                final state = context.findAncestorStateOfType<
+                                    _AdminDashboardScreenState>();
                                 state?.setState(() => state._currentIndex = 1);
                               },
                             ),
@@ -215,13 +230,24 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                               label: 'Laporan\nAI',
                               color: const Color(0xFFFF9800),
                               onTap: () {
-                                final state = context
-                                    .findAncestorStateOfType<_AdminDashboardScreenState>();
+                                final state = context.findAncestorStateOfType<
+                                    _AdminDashboardScreenState>();
                                 state?.setState(() => state._currentIndex = 2);
                               },
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _QuickActionCard(
+                          icon: Icons.campaign_rounded,
+                          label: 'Broadcast ke\nTenant',
+                          color: const Color(0xFF1BC0BA),
+                          onTap: () =>
+                              Get.to(() => const AdminBroadcastScreen()),
+                        ),
                       ),
                     ]),
                   ),
@@ -244,7 +270,8 @@ class _AdminProfileTab extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Profil', style: TextStyle(fontWeight: FontWeight.w600)),
+        title:
+            const Text('Profil', style: TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -268,7 +295,10 @@ class _AdminProfileTab extends StatelessWidget {
           const Center(
             child: Text(
               'Administrator',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A2E)),
             ),
           ),
           const Center(
@@ -366,7 +396,8 @@ class _PendapatanCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
@@ -379,7 +410,8 @@ class _PendapatanCard extends StatelessWidget {
               const Spacer(),
               if (tagihanPending > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade400.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(8),
@@ -512,7 +544,8 @@ class _ProfileMenuItem extends StatelessWidget {
       ),
       child: ListTile(
         leading: Icon(icon, color: c, size: 22),
-        title: Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w500)),
+        title: Text(label,
+            style: TextStyle(color: c, fontWeight: FontWeight.w500)),
         trailing: Icon(Icons.chevron_right_rounded, color: c.withOpacity(0.5)),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

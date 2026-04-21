@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
+import '../models/broadcast_model.dart';
 import '../models/user_model.dart';
 import '../models/payment_model.dart';
 import '../models/emergency_log_model.dart';
@@ -19,6 +20,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     _database ??= await _initDatabase();
+    await _ensureBroadcastTables(_database!);
     return _database!;
   }
 
@@ -33,6 +35,9 @@ class DatabaseHelper {
       version: AppConstants.DB_VERSION,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onOpen: (db) async {
+        await _ensureBroadcastTables(db);
+      },
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -87,13 +92,69 @@ class DatabaseHelper {
       )
     ''');
 
+    // Tabel Broadcasts
+    await _ensureBroadcastTables(db);
+
     // Insert akun Admin (hardcoded, SHA-256 hashed)
     await _insertDefaultAdmin(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Siapkan untuk upgrade skema di masa depan
-    // if (oldVersion < 2) { await db.execute('ALTER TABLE ...'); }
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS broadcast_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          audience TEXT NOT NULL DEFAULT 'tenant',
+          created_by_user_id INTEGER,
+          created_by_name TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS broadcast_deliveries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          broadcast_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          delivered_at TEXT NOT NULL,
+          read_at TEXT,
+          UNIQUE(broadcast_id, user_id),
+          FOREIGN KEY (broadcast_id) REFERENCES broadcast_messages (id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+  }
+
+  Future<void> _ensureBroadcastTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS broadcast_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        audience TEXT NOT NULL DEFAULT 'tenant',
+        created_by_user_id INTEGER,
+        created_by_name TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS broadcast_deliveries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        broadcast_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        delivered_at TEXT NOT NULL,
+        read_at TEXT,
+        UNIQUE(broadcast_id, user_id),
+        FOREIGN KEY (broadcast_id) REFERENCES broadcast_messages (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   Future<void> _insertDefaultAdmin(Database db) async {
@@ -505,6 +566,141 @@ class DatabaseHelper {
         where: 'id = ?',
         whereArgs: [logId],
       );
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // ─── BROADCAST CRUD ───────────────────────────────────────────────────────
+
+  Future<int> createBroadcast(BroadcastMessageModel broadcast) async {
+    try {
+      final db = await database;
+      return await db.insert('broadcast_messages', broadcast.toMap());
+    } catch (e) {
+      return -1;
+    }
+  }
+
+  Future<List<BroadcastMessageModel>> getBroadcastInbox(int userId,
+      {int limit = 50}) async {
+    try {
+      final db = await database;
+      final maps = await db.rawQuery('''
+        SELECT b.*, CASE WHEN d.read_at IS NULL THEN 0 ELSE 1 END AS is_read
+        FROM broadcast_messages b
+        LEFT JOIN broadcast_deliveries d
+          ON d.broadcast_id = b.id AND d.user_id = ?
+        WHERE b.audience IN ('tenant', 'all')
+        ORDER BY b.created_at DESC
+        LIMIT ?
+      ''', [userId, limit]);
+      return maps.map((m) => BroadcastMessageModel.fromMap(m)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<BroadcastMessageModel>> getAllBroadcasts({int limit = 50}) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'broadcast_messages',
+        orderBy: 'created_at DESC',
+        limit: limit,
+      );
+      return maps.map((m) => BroadcastMessageModel.fromMap(m)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<BroadcastMessageModel>> getUndeliveredBroadcasts(int userId,
+      {int limit = 20}) async {
+    try {
+      final db = await database;
+      final maps = await db.rawQuery('''
+        SELECT b.*
+        FROM broadcast_messages b
+        LEFT JOIN broadcast_deliveries d
+          ON d.broadcast_id = b.id AND d.user_id = ?
+        WHERE b.audience IN ('tenant', 'all')
+          AND d.id IS NULL
+        ORDER BY b.created_at DESC
+        LIMIT ?
+      ''', [userId, limit]);
+      return maps.map((m) => BroadcastMessageModel.fromMap(m)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<int> markBroadcastDelivered(int broadcastId, int userId) async {
+    try {
+      final db = await database;
+      return await db.insert(
+        'broadcast_deliveries',
+        {
+          'broadcast_id': broadcastId,
+          'user_id': userId,
+          'delivered_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> markBroadcastRead(int broadcastId, int userId) async {
+    try {
+      final db = await database;
+      final updated = await db.update(
+        'broadcast_deliveries',
+        {'read_at': DateTime.now().toIso8601String()},
+        where: 'broadcast_id = ? AND user_id = ?',
+        whereArgs: [broadcastId, userId],
+      );
+
+      if (updated > 0) return updated;
+
+      return await db.insert('broadcast_deliveries', {
+        'broadcast_id': broadcastId,
+        'user_id': userId,
+        'delivered_at': DateTime.now().toIso8601String(),
+        'read_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> markAllBroadcastsRead(int userId) async {
+    try {
+      final db = await database;
+      final now = DateTime.now().toIso8601String();
+      return await db.rawUpdate('''
+        UPDATE broadcast_deliveries
+        SET read_at = ?
+        WHERE user_id = ?
+      ''', [now, userId]);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> getUnreadBroadcastCount(int userId) async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT COUNT(*) as count
+        FROM broadcast_messages b
+        LEFT JOIN broadcast_deliveries d
+          ON d.broadcast_id = b.id AND d.user_id = ?
+        WHERE b.audience IN ('tenant', 'all')
+          AND d.read_at IS NULL
+      ''', [userId]);
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       return 0;
     }

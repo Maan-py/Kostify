@@ -43,7 +43,7 @@ class AppConstants {
 
   // ─── Database ────────────────────────────────────────────────────────────────
   static const String DB_NAME = 'kostify.db';
-  static const int DB_VERSION = 1;
+  static const int DB_VERSION = 2;
 
   // ─── Secure Storage Keys ─────────────────────────────────────────────────────
   static const String STORAGE_USER_ID = 'user_id';
