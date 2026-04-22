@@ -689,7 +689,9 @@ class _PaymentCardState extends State<_PaymentCard> {
 }
 
 class _PaymentRow extends StatelessWidget {
-  final dynamic payment;
+  // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca 
+  // re-update
+  final PaymentModel payment; 
   const _PaymentRow({required this.payment});
 
   @override
