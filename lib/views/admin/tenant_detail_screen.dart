@@ -165,6 +165,20 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         return;
       }
 
+      // Validasi apakah tagihan untuk bulan tersebut sudah ada
+      final exists = await _db.isPaymentExists(_tenant.id!, bulan);
+      if (exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tagihan untuk bulan tersebut sudah ada.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       await _db.createPayment(PaymentModel(
         userId: _tenant.id!,
         amount: amount,
@@ -313,10 +327,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     if (deleted > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Pengguna ${_tenant.namaLengkap ?? _tenant.username} berhasil dihapus.'),
+          content: Text(
+              'Pengguna ${_tenant.namaLengkap ?? _tenant.username} berhasil dihapus.'),
           backgroundColor: const Color(0xFF1BC0BA),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -327,7 +343,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
           content: const Text('Gagal menghapus pengguna.'),
           backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
