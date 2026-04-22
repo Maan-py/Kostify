@@ -62,7 +62,7 @@ class AppConstants {
   static const String STORAGE_IS_LOGGED_IN = 'is_logged_in';
   static const String STORAGE_SAVED_USERNAME = 'saved_username';
 
-  // ─── Sensor ──────────────────────────────────────────────────────────────────
+  // ─── Sensor ─────────────────────────────────────────────────────────────────
   static const double SHAKE_THRESHOLD = 15.0; // m/s² threshold guncangan
   static const int SHAKE_COOLDOWN_SECONDS = 5; // Cooldown antar notif darurat
   static const int SHAKE_COUNT_REQUIRED = 5; // Jumlah shake sebelum trigger

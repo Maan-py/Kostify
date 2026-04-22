@@ -207,7 +207,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     setState(() => _isSendingReminder = true);
     final latest = pendingPayments.first;
     final sent = await _api.sendPaymentReminder(
-      nomorKamar: _tenant.nomorKamar ?? '-',
+      nomorHP: _tenant.telepon ?? '',
       tenantName: _tenant.namaLengkap ?? _tenant.username,
       bulan: latest.bulan,
       amount: latest.amount,
@@ -216,8 +216,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       setState(() => _isSendingReminder = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(sent
-            ? '✅ Reminder dikirim ke Telegram!'
-            : '⚠️ Gagal kirim. Cek konfigurasi Telegram.'),
+            ? '✅ WhatsApp dibuka untuk kirim reminder!'
+            : '⚠️ Gagal buka WhatsApp. Cek nomor HP tenant.'),
         backgroundColor:
             sent ? const Color(0xFF1BC0BA) : Colors.orange.shade700,
         behavior: SnackBarBehavior.floating,

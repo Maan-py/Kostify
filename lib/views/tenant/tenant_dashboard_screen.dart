@@ -21,6 +21,7 @@ import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'tools_screen.dart';
 import 'tenant_map_screen.dart';
+import '../../models/payment_model.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
   const TenantDashboardScreen({super.key});
@@ -212,6 +213,25 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
 
                   // Kartu kamar
                   _RoomCard(user: user),
+                  const SizedBox(height: 16),
+
+                  // Akses broadcast
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Get.toNamed('/tenant/broadcast'),
+                      icon: const Icon(Icons.campaign_rounded, size: 18),
+                      label: const Text('Broadcast Pengumuman'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1BC0BA),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 16),
 
                   // Kartu pembayaran
@@ -807,12 +827,15 @@ class _PaymentCardState extends State<_PaymentCard> {
 }
 
 class _PaymentRow extends StatelessWidget {
-  final dynamic payment;
+  // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca 
+  // re-update
+  final PaymentModel payment; 
   const _PaymentRow({required this.payment});
 
   @override
   Widget build(BuildContext context) {
-    final isPaid = payment.status.value == 'paid';
+    // UPDATE: Bandingkan langsung dengan enum, lebih aman dan efisien
+    final isPaid = payment.status == PaymentStatus.paid; 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -881,7 +904,7 @@ class _EmergencyCard extends StatelessWidget {
                 Text(
                   isSent
                       ? '✓ Sinyal dikirim ke admin'
-                      : 'Kocok ponsel 3x atau tekan tombol',
+                      : 'Kocok ponsel 5x atau tekan tombol',
                   style: TextStyle(
                     fontSize: 11,
                     color: isSent ? const Color(0xFF0F6E56) : const Color(0xFF6B7280),
