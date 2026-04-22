@@ -212,6 +212,25 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
                   _RoomCard(user: user),
                   const SizedBox(height: 16),
 
+                  // Akses broadcast
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Get.toNamed('/tenant/broadcast'),
+                      icon: const Icon(Icons.campaign_rounded, size: 18),
+                      label: const Text('Broadcast Pengumuman'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1BC0BA),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   // Kartu pembayaran
                   _PaymentCard(userId: user.id!),
                   const SizedBox(height: 16),
