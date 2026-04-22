@@ -127,6 +127,19 @@ class DatabaseHelper {
         )
       ''');
     }
+
+    if (oldVersion < 3) {
+      // Cara aman: Tambah kolom tanpa hapus tabel
+  try {
+    await db.execute("ALTER TABLE users ADD COLUMN telepon TEXT NOT NULL DEFAULT ''");
+  } catch (e) {
+    // Jika kolom ternyata sudah ada, aplikasi tidak akan crash
+    print("Kolom telepon mungkin sudah ada: $e");
+  }
+  
+  // Pastikan data lama tidak ada yang null di kolom telepon
+  await db.execute("UPDATE users SET telepon = '' WHERE telepon IS NULL");
+    }
   }
 
   Future<void> _ensureBroadcastTables(Database db) async {

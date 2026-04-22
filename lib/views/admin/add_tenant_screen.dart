@@ -1085,9 +1085,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         alamat: _alamatCtrl.text.trim(),
         nomorKamar: _nomorKamarCtrl.text.trim(),
         hargaSewa: int.tryParse(_hargaSewaCtrl.text.trim()),
-        telepon: _teleponCtrl.text.trim().isNotEmpty
-            ? _teleponCtrl.text.trim()
-            : null,
+        telepon: _teleponCtrl.text.trim(),
         tanggalMasuk: tanggalMasuk,
         createdAt: DateTime.now(),
       );
@@ -1485,7 +1483,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         const SizedBox(height: 12),
         _FormField(
           controller: _teleponCtrl,
-          label: 'Nomor Telepon',
+          label: 'Nomor Telepon *',
           hint: '08xxxxxxxxxx',
           icon: Icons.phone_outlined,
           maxLength: 15,
@@ -1494,7 +1492,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
             LengthLimitingTextInputFormatter(15),
           ],
-          validator: (v) => null,
+          validator: (v) => v?.trim().isEmpty ?? true ? 'Nomor telepon wajib diisi' : null,
         ),
       ],
     );

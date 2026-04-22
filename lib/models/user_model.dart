@@ -29,7 +29,7 @@ class UserModel {
     this.hargaSewa,
     this.fotoProfilPath,
     this.tanggalMasuk,
-    this.telepon,
+    required this.telepon,
     this.createdAt,
   });
 
