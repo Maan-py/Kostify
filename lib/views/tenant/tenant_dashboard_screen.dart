@@ -626,12 +626,12 @@ class _RoomCard extends StatelessWidget {
       final snapUrl = result.redirectUrl!;
       final uri = Uri.parse(snapUrl);
 
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
