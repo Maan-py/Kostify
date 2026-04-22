@@ -767,7 +767,7 @@ class _EmergencyCard extends StatelessWidget {
                 Text(
                   isSent
                       ? '✓ Sinyal dikirim ke admin'
-                      : 'Kocok ponsel 3x atau tekan tombol',
+                      : 'Kocok ponsel 5x atau tekan tombol',
                   style: TextStyle(
                     fontSize: 11,
                     color: isSent ? const Color(0xFF0F6E56) : const Color(0xFF6B7280),

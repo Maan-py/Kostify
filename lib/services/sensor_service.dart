@@ -14,7 +14,7 @@ class SensorService {
   factory SensorService() => _instance;
   SensorService._internal();
 
-  // ─── Shake Detection ──────────────────────────────────────────────────────
+  // ─── Shake Detection ─────────────────────────────────────────────────────
   StreamSubscription<AccelerometerEvent>? _accelSubscription;
   ShakeCallback? _onShake;
 
