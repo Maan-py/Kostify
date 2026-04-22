@@ -165,6 +165,20 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         return;
       }
 
+      // Validasi apakah tagihan untuk bulan tersebut sudah ada
+      final exists = await _db.isPaymentExists(_tenant.id!, bulan);
+      if (exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tagihan untuk bulan tersebut sudah ada.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       await _db.createPayment(PaymentModel(
         userId: _tenant.id!,
         amount: amount,

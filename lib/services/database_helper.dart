@@ -460,6 +460,21 @@ class DatabaseHelper {
     }
   }
 
+  Future<bool> isPaymentExists(int userId, String bulan) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'payments',
+        where: 'user_id = ? AND bulan = ?',
+        whereArgs: [userId, bulan],
+        limit: 1,
+      );
+      return maps.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<int> updatePaymentStatus(int paymentId, PaymentStatus status) async {
     try {
       final db = await database;
