@@ -1,10 +1,12 @@
 // lib/views/tenant/tenant_map_screen.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
 import '../../controllers/auth_controller.dart';
 import '../../utils/constants.dart';
@@ -20,6 +22,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
   GoogleMapController? _mapController;
   Position? _userPosition;
   bool _isLoadingLocation = false;
+  bool _isLoadingRoute = false;
   bool _locationPermissionDenied = false;
   String? _locationError;
   double? _distanceKm;
@@ -30,6 +33,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
   );
 
   Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
 
   @override
   void initState() {
@@ -154,6 +158,32 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
     );
   }
 
+  void _fitBoundsForPoints(List<LatLng> points) {
+    if (_mapController == null || points.isEmpty) return;
+
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+
+    for (final p in points) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        80,
+      ),
+    );
+  }
+
   void _centerToKos() {
     _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
@@ -169,19 +199,136 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
     );
   }
 
-  Future<void> _openInMaps() async {
-    final url = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=${AppConstants.KOS_LATITUDE},${AppConstants.KOS_LONGITUDE}'
-      '&travelmode=driving',
-    );
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+  List<LatLng> _decodePolyline(String encoded) {
+    final List<LatLng> polylineCoordinates = [];
+    int index = 0;
+    int lat = 0;
+    int lng = 0;
+
+    while (index < encoded.length) {
+      int shift = 0;
+      int result = 0;
+      int b;
+
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+
+      final dLat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lat += dLat;
+
+      shift = 0;
+      result = 0;
+
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+
+      final dLng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lng += dLng;
+
+      polylineCoordinates.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+
+    return polylineCoordinates;
+  }
+
+  Future<void> _showRouteOnMap() async {
+    if (_isLoadingRoute) return;
+
+    if (_userPosition == null) {
+      await _getUserLocation();
+    }
+
+    if (_userPosition == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak dapat membuka Google Maps.')),
+          const SnackBar(content: Text('Lokasi kamu belum tersedia.')),
         );
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoadingRoute = true;
+    });
+
+    try {
+      final origin = '${_userPosition!.latitude},${_userPosition!.longitude}';
+      final destination = '${AppConstants.KOS_LATITUDE},${AppConstants.KOS_LONGITUDE}';
+
+      final uri = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json'
+        '?origin=$origin'
+        '&destination=$destination'
+        '&mode=driving'
+        '&language=id'
+        '&key=${AppConstants.GOOGLE_MAPS_API_KEY}',
+      );
+
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: AppConstants.HTTP_TIMEOUT_SECONDS),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Gagal memuat rute.');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final status = data['status'] as String?;
+
+      if (status != 'OK' || (data['routes'] as List).isEmpty) {
+        throw Exception(data['error_message'] ?? 'Rute tidak ditemukan.');
+      }
+
+      final firstRoute = (data['routes'] as List).first as Map<String, dynamic>;
+      final encodedPoints = (firstRoute['overview_polyline'] as Map<String, dynamic>)['points'] as String;
+      final routePoints = _decodePolyline(encodedPoints);
+
+      if (routePoints.isEmpty) {
+        throw Exception('Rute kosong.');
+      }
+
+      final firstLeg = ((firstRoute['legs'] as List).first as Map<String, dynamic>);
+      final distanceText = (firstLeg['distance'] as Map<String, dynamic>)['text'] as String?;
+      final durationText = (firstLeg['duration'] as Map<String, dynamic>)['text'] as String?;
+
+      if (mounted) {
+        setState(() {
+          _polylines = {
+            Polyline(
+              polylineId: const PolylineId('route_to_kos'),
+              points: routePoints,
+              width: 5,
+              color: const Color(0xFF8095E4),
+              geodesic: true,
+            ),
+          };
+        });
+
+        _fitBoundsForPoints(routePoints);
+
+        if (distanceText != null && durationText != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Rute tampil: $distanceText • $durationText')),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menampilkan rute: ${e.toString().replaceFirst('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRoute = false;
+        });
       }
     }
   }
@@ -285,6 +432,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                     zoom: 15,
                   ),
                   markers: _markers,
+                  polylines: _polylines,
                   myLocationEnabled: false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
@@ -298,7 +446,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                 ),
 
                 // Loading overlay
-                if (_isLoadingLocation)
+                if (_isLoadingLocation || _isLoadingRoute)
                   Positioned(
                     top: 12,
                     left: 0, right: 0,
@@ -310,15 +458,18 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SizedBox(
+                            const SizedBox(
                               width: 14, height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8095E4)),
                             ),
-                            SizedBox(width: 8),
-                            Text('Mencari lokasi...', style: TextStyle(fontSize: 12)),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isLoadingRoute ? 'Memuat rute...' : 'Mencari lokasi...',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ],
                         ),
                       ),
@@ -377,7 +528,7 @@ class _TenantMapScreenState extends State<TenantMapScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
-                      onPressed: _openInMaps,
+                      onPressed: _isLoadingRoute ? null : _showRouteOnMap,
                       icon: const Icon(Icons.navigation_rounded, size: 20),
                       label: const Text('Navigasi ke Kos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
