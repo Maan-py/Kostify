@@ -13,7 +13,7 @@ class UserModel {
   final int? hargaSewa;       // dalam IDR
   final String? fotoProfilPath; // path lokal file
   final String? tanggalMasuk;   // format: yyyy-MM-dd
-  final String telepon;
+  final String? telepon;
   final DateTime? createdAt;
 
   const UserModel({
@@ -69,7 +69,7 @@ class UserModel {
       hargaSewa: map['harga_sewa'] as int?,
       fotoProfilPath: map['foto_profil_path'] as String?,
       tanggalMasuk: map['tanggal_masuk'] as String?,
-      telepon: map['telepon'] as String? ?? '',
+      telepon: map['telepon'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String)
           : null,
