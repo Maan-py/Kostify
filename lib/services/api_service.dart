@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 
 class ApiService {
@@ -151,10 +152,13 @@ class ApiService {
     required String nomorKamar,
     required DateTime timestamp,
   }) async {
+    print("DEBUG SOS: Token = ${AppConstants.TELEGRAM_BOT_TOKEN}");
+    print("DEBUG SOS: ChatID = ${AppConstants.TELEGRAM_CHAT_ID}");
     if (!await hasInternet()) return false;
 
-    if (AppConstants.TELEGRAM_BOT_TOKEN == 'YOUR_TELEGRAM_BOT_TOKEN_HERE') {
-      return false; // Placeholder — silent fail
+    if (AppConstants.TELEGRAM_BOT_TOKEN == 'MISSING_BOT_TOKEN' ||
+        AppConstants.TELEGRAM_CHAT_ID == 'MISSING_CHAT_ID') {
+      return false;
     }
 
     final message = '''
@@ -187,42 +191,26 @@ class ApiService {
     }
   }
 
-  /// Telegram notification untuk reminder pembayaran
+  /// WhatsApp Direct Message untuk reminder pembayaran
   Future<bool> sendPaymentReminder({
     required String tenantName,
-    required String nomorKamar,
+    required String nomorHP,
     required String bulan,
     required int amount,
   }) async {
-    if (!await hasInternet()) return false;
-    if (AppConstants.TELEGRAM_BOT_TOKEN == 'YOUR_TELEGRAM_BOT_TOKEN_HERE')
-      return false;
+    if (nomorHP.isEmpty) return false;
 
-    final message = '''
-💰 *REMINDER PEMBAYARAN SEWA*
-
-👤 Penghuni: *${_escapeTg(tenantName)}*
-🚪 Kamar: *${_escapeTg(nomorKamar.isNotEmpty ? nomorKamar : '-')} *
-📅 Bulan: $bulan
-💵 Tagihan: ${_formatRupiah(amount)}
-
-Ingatkan *${_escapeTg(tenantName)}*, kamar *${_escapeTg(nomorKamar.isNotEmpty ? nomorKamar : '-')}* untuk membayar. Terima kasih!
-— Kostify
-''';
+    final formattedPhone = _formatPhoneNumber(nomorHP);
+    final message = 'Halo $tenantName, ini pengingat pembayaran kost bulan $bulan sebesar Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}. Mohon segera diselesaikan ya, terima kasih!';
+    final url = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
 
     try {
-      final response = await http
-          .post(
-            Uri.parse(AppConstants.TELEGRAM_BASE_URL),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'chat_id': AppConstants.TELEGRAM_CHAT_ID,
-              'text': message,
-              'parse_mode': 'Markdown',
-            }),
-          )
-          .timeout(_timeout);
-      return response.statusCode == 200;
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }
@@ -235,8 +223,7 @@ Ingatkan *${_escapeTg(tenantName)}*, kamar *${_escapeTg(nomorKamar.isNotEmpty ? 
       return ExchangeRateResult.error('Tidak ada koneksi internet.');
     }
 
-    if (AppConstants.EXCHANGE_RATE_API_KEY ==
-        'YOUR_EXCHANGE_RATE_API_KEY_HERE') {
+    if (AppConstants.EXCHANGE_RATE_API_KEY == 'MISSING_API_KEY') {
       return ExchangeRateResult.error(
         'API Key nilai tukar belum dikonfigurasi.',
       );
@@ -287,14 +274,21 @@ Ingatkan *${_escapeTg(tenantName)}*, kamar *${_escapeTg(nomorKamar.isNotEmpty ? 
 
   String _formatRupiah(int amount) {
     final str = amount.toString();
-    final buffer = StringBuffer('Rp ');
+    final buffer = StringBuffer(); // Mulai dari string kosong
     int counter = 0;
     for (int i = str.length - 1; i >= 0; i--) {
       if (counter > 0 && counter % 3 == 0) buffer.write('.');
       buffer.write(str[i]);
       counter++;
     }
-    return buffer.toString().split('').reversed.join();
+    return 'Rp ${buffer.toString().split('').reversed.join()}';
+  }
+
+  String _formatPhoneNumber(String phone) {
+    if (phone.startsWith('0')) {
+      return '62${phone.substring(1)}';
+    }
+    return phone;
   }
 }
 

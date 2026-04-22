@@ -19,7 +19,6 @@ import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'tools_screen.dart';
 import 'tenant_map_screen.dart';
-import '../../models/payment_model.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
   const TenantDashboardScreen({super.key});
@@ -363,93 +362,6 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
     );
   }
 
-  Future<void> _changePassword() async {
-    final oldCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Ganti Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password Lama'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password Baru'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Konfirmasi Password Baru'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1BC0BA)),
-            child: const Text('Ganti'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
-
-    final oldPass = oldCtrl.text.trim();
-    final newPass = newCtrl.text.trim();
-    final confirmPass = confirmCtrl.text.trim();
-
-    if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua field harus diisi'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    if (newPass != confirmPass) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password baru tidak cocok'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    if (newPass.length < AppConstants.MIN_PASSWORD_LENGTH) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password minimal ${AppConstants.MIN_PASSWORD_LENGTH} karakter'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    final success = await _db.changePassword(
-      userId: _auth.currentUser.value!.id!,
-      oldPassword: oldPass,
-      newPassword: newPass,
-    );
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password berhasil diubah'), backgroundColor: Color(0xFF1BC0BA)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password lama salah'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -551,9 +463,6 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
             const SizedBox(height: 16),
 
             // Menu
-            _ProfileMenuItem(icon: Icons.lock_rounded, label: 'Ganti Password',
-                onTap: _changePassword),
-            const SizedBox(height: 8),
             _ProfileMenuItem(icon: Icons.rate_review_rounded, label: 'Saran & Kesan TPM',
                 onTap: () => Get.to(() => const SaranKesanScreen())),
             const SizedBox(height: 8),
@@ -599,8 +508,39 @@ class _RoomCard extends StatelessWidget {
   final UserModel user;
   const _RoomCard({required this.user});
 
+  DateTime? _nextPaymentDeadline() {
+    final masuk = DateTime.tryParse(user.tanggalMasuk ?? '');
+    if (masuk == null) return null;
+
+    final now = DateTime.now();
+    final dueDay = masuk.day;
+
+    DateTime buildDeadline(int year, int month, int day) {
+      final lastDay = DateTime(year, month + 1, 0).day;
+      final safeDay = day > lastDay ? lastDay : day;
+      return DateTime(year, month, safeDay);
+    }
+
+    var deadline = buildDeadline(now.year, now.month, dueDay);
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (deadline.isBefore(today)) {
+      deadline = buildDeadline(now.year, now.month + 1, dueDay);
+    }
+
+    return deadline;
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final deadline = _nextPaymentDeadline();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -611,35 +551,76 @@ class _RoomCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
         children: [
-          const Icon(Icons.home_work_rounded, color: Colors.white70, size: 40),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Kamar Kamu', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                Text(
-                  'No. ${user.nomorKamar ?? "-"}',
-                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              const Icon(Icons.home_work_rounded, color: Colors.white70, size: 40),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Kamar Kamu', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(
+                      'No. ${user.nomorKamar ?? "-"}',
+                      style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      AppConstants.KOS_NAME,
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ],
                 ),
-                Text(
-                  AppConstants.KOS_NAME,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Sewa/bulan', style: TextStyle(color: Colors.white60, fontSize: 10)),
+                  Text(
+                    user.hargaSewa != null ? AppValidators.formatRupiah(user.hargaSewa!) : '-',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.event_note_rounded, color: Colors.white70, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    deadline != null
+                        ? 'Deadline pembayaran: ${_formatDate(deadline)}'
+                        : 'Deadline pembayaran: -',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Text('Sewa/bulan', style: TextStyle(color: Colors.white60, fontSize: 10)),
-              Text(
-                user.hargaSewa != null ? AppValidators.formatRupiah(user.hargaSewa!) : '-',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.payments_outlined, size: 18),
+              label: const Text('Bayar Sekarang'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -707,7 +688,6 @@ class _PaymentCardState extends State<_PaymentCard> {
   }
 }
 
-
 class _PaymentRow extends StatelessWidget {
   // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca 
   // re-update
@@ -716,9 +696,7 @@ class _PaymentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UPDATE: Bandingkan langsung dengan enum, lebih aman dan efisien
-    final isPaid = payment.status == PaymentStatus.paid; 
-    
+    final isPaid = payment.status.value == 'paid';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(

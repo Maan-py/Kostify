@@ -7,17 +7,22 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'controllers/auth_controller.dart';
 import 'controllers/tenant_controller.dart';
+import 'services/notification_service.dart';
 import 'services/connectivity_service.dart';
 import 'views/auth/login_screen.dart';
 import 'views/admin/admin_dashboard_screen.dart';
 import 'views/admin/add_tenant_screen.dart';
+import 'views/admin/admin_broadcast_screen.dart';
 import 'views/admin/tenant_detail_screen.dart';
 import 'views/tenant/tenant_dashboard_screen.dart';
+import 'views/tenant/tenant_broadcast_screen.dart';
 import 'views/shared/saran_kesan_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
   await dotenv.load(fileName: ".env");
+  await NotificationService.instance.init();
   await SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -97,11 +102,14 @@ class AppRoutes {
     GetPage(name: '/login', page: () => const LoginScreen()),
     GetPage(name: '/admin/dashboard', page: () => const AdminDashboardScreen()),
     GetPage(name: '/admin/add-tenant', page: () => const AddTenantScreen()),
+    GetPage(name: '/admin/broadcast', page: () => const AdminBroadcastScreen()),
     GetPage(
         name: '/admin/tenant-detail', page: () => const TenantDetailScreen()),
     GetPage(name: '/admin/saran-kesan', page: () => const SaranKesanScreen()),
     GetPage(
         name: '/tenant/dashboard', page: () => const TenantDashboardScreen()),
+    GetPage(
+        name: '/tenant/broadcast', page: () => const TenantBroadcastScreen()),
     GetPage(name: '/tenant/saran-kesan', page: () => const SaranKesanScreen()),
   ];
 }

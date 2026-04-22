@@ -19,27 +19,31 @@ class AppConstants {
   // ─── API Keys (PLACEHOLDER — ganti dengan key asli) ─────────────────────────
   static String get GEMINI_API_KEY =>
       dotenv.env['GOOGLE_GEMINI_API_KEY'] ?? 'MISSING_API_KEY';
-  static const String EXCHANGE_RATE_API_KEY = 'YOUR_EXCHANGE_RATE_API_KEY_HERE';
-  static const String TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
-  static const String TELEGRAM_CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID_HERE';
+  static String get EXCHANGE_RATE_API_KEY =>
+      dotenv.env['EXCHANGE_RATE_API_KEY'] ?? 'MISSING_API_KEY';
+  static String get TELEGRAM_BOT_TOKEN =>
+      dotenv.env['TELEGRAM_BOT_TOKEN'] ?? 'MISSING_BOT_TOKEN';
+  static String get TELEGRAM_CHAT_ID =>
+      dotenv.env['TELEGRAM_CHAT_ID'] ?? 'MISSING_CHAT_ID';
   static String get GOOGLE_MAPS_API_KEY =>
       dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'MISSING_API_KEY';
   static const String GEMINI_BASE_URL =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-  static const String EXCHANGE_RATE_BASE_URL =
+  static String get EXCHANGE_RATE_BASE_URL =>
       'https://v6.exchangerate-api.com/v6/$EXCHANGE_RATE_API_KEY/latest/';
-  static const String TELEGRAM_BASE_URL =
+  static String get TELEGRAM_BASE_URL =>
       'https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage';
 
   // ─── Kos Info (bisa diedit admin nantinya, untuk sekarang hardcode) ──────────
-  static const String KOS_NAME = 'Kos Bahagia Sejahtera';
-  static const String KOS_ADDRESS = 'Jl. Contoh No. 123, Semarang, Jawa Tengah';
-  static const double KOS_LATITUDE = -7.005145; // Koordinat Semarang
-  static const double KOS_LONGITUDE = 110.438125;
+  static const String KOS_NAME = 'Kos Bela Negara';
+  static const String KOS_ADDRESS =
+      'Jl. Babarsari No. 2, Tambakbayan, Caturtunggal, Kecamatan Depok, Kabupaten Sleman, Daerah Istimewa Yogyakarta ';
+  static const double KOS_LATITUDE = -7.782289529024553;
+  static const double KOS_LONGITUDE = 110.41590797374627;
 
   // ─── Database ────────────────────────────────────────────────────────────────
   static const String DB_NAME = 'kostify.db';
-  static const int DB_VERSION = 1;
+  static const int DB_VERSION = 3;
 
   // ─── Secure Storage Keys ─────────────────────────────────────────────────────
   static const String STORAGE_USER_ID = 'user_id';
@@ -51,7 +55,7 @@ class AppConstants {
   // ─── Sensor ──────────────────────────────────────────────────────────────────
   static const double SHAKE_THRESHOLD = 15.0; // m/s² threshold guncangan
   static const int SHAKE_COOLDOWN_SECONDS = 5; // Cooldown antar notif darurat
-  static const int SHAKE_COUNT_REQUIRED = 3; // Jumlah shake sebelum trigger
+  static const int SHAKE_COUNT_REQUIRED = 5; // Jumlah shake sebelum trigger
 
   // ─── Input Validation ────────────────────────────────────────────────────────
   static const int MAX_USERNAME_LENGTH = 30;
