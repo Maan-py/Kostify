@@ -34,6 +34,16 @@ class AppConstants {
   static String get TELEGRAM_BASE_URL =>
       'https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage';
 
+  // ─── Midtrans Payment Gateway (Sandbox) ──────────────────────────────────────
+  // PENTING: Isi kredensial Midtrans Anda di sini atau di file .env
+  // Dapatkan keys dari: https://dashboard.sandbox.midtrans.com/settings/config
+  static String get MIDTRANS_SERVER_KEY =>
+      dotenv.env['MIDTRANS_SERVER_KEY'] ?? '';
+  static String get MIDTRANS_CLIENT_KEY =>
+      dotenv.env['MIDTRANS_CLIENT_KEY'] ?? '';
+  static const String MIDTRANS_BASE_URL =
+      'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
   // ─── Kos Info (bisa diedit admin nantinya, untuk sekarang hardcode) ──────────
   static const String KOS_NAME = 'Kos Bela Negara';
   static const String KOS_ADDRESS =
@@ -43,7 +53,7 @@ class AppConstants {
 
   // ─── Database ────────────────────────────────────────────────────────────────
   static const String DB_NAME = 'kostify.db';
-  static const int DB_VERSION = 2;
+  static const int DB_VERSION = 4;
 
   // ─── Secure Storage Keys ─────────────────────────────────────────────────────
   static const String STORAGE_USER_ID = 'user_id';

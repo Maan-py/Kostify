@@ -46,6 +46,8 @@ class PaymentModel {
   final DateTime? createdAt;
   final DateTime? paidAt;
   final String? keterangan;
+  final String? orderId;   // Midtrans Order ID
+  final String? snapUrl;   // Midtrans Snap URL
 
   const PaymentModel({
     this.id,
@@ -56,6 +58,8 @@ class PaymentModel {
     this.createdAt,
     this.paidAt,
     this.keterangan,
+    this.orderId,
+    this.snapUrl,
   });
 
   Map<String, dynamic> toMap() {
@@ -68,6 +72,8 @@ class PaymentModel {
       'created_at': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'paid_at': paidAt?.toIso8601String(),
       'keterangan': keterangan,
+      'order_id': orderId,
+      'snap_url': snapUrl,
     };
   }
 
@@ -85,6 +91,8 @@ class PaymentModel {
           ? DateTime.tryParse(map['paid_at'] as String)
           : null,
       keterangan: map['keterangan'] as String?,
+      orderId: map['order_id'] as String?,
+      snapUrl: map['snap_url'] as String?,
     );
   }
 
@@ -97,6 +105,8 @@ class PaymentModel {
     DateTime? createdAt,
     DateTime? paidAt,
     String? keterangan,
+    String? orderId,
+    String? snapUrl,
   }) {
     return PaymentModel(
       id: id ?? this.id,
@@ -107,6 +117,8 @@ class PaymentModel {
       createdAt: createdAt ?? this.createdAt,
       paidAt: paidAt ?? this.paidAt,
       keterangan: keterangan ?? this.keterangan,
+      orderId: orderId ?? this.orderId,
+      snapUrl: snapUrl ?? this.snapUrl,
     );
   }
 }

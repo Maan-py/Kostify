@@ -127,6 +127,27 @@ class DatabaseHelper {
         )
       ''');
     }
+
+    if (oldVersion < 4) {
+      // ─── Migration: Tambah kolom order_id dan snap_url ke payments ────────
+      try {
+        await db.execute(
+          'ALTER TABLE payments ADD COLUMN order_id TEXT',
+        );
+      } catch (e) {
+        // Kolom order_id mungkin sudah ada
+        print('Kolom order_id mungkin sudah ada: $e');
+      }
+
+      try {
+        await db.execute(
+          'ALTER TABLE payments ADD COLUMN snap_url TEXT',
+        );
+      } catch (e) {
+        // Kolom snap_url mungkin sudah ada
+        print('Kolom snap_url mungkin sudah ada: $e');
+      }
+    }
   }
 
   Future<void> _ensureBroadcastTables(Database db) async {

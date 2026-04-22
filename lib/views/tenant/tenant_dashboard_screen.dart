@@ -7,9 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../models/user_model.dart';
+import '../../models/payment_model.dart';
 import '../../models/emergency_log_model.dart';
 import '../../services/database_helper.dart';
 import '../../services/sensor_service.dart';
@@ -506,7 +508,11 @@ class _GreetingHeader extends StatelessWidget {
 
 class _RoomCard extends StatelessWidget {
   final UserModel user;
-  const _RoomCard({required this.user});
+  
+  _RoomCard({required this.user});
+
+  final _db = DatabaseHelper();
+  final _api = ApiService();
 
   DateTime? _nextPaymentDeadline() {
     final masuk = DateTime.tryParse(user.tanggalMasuk ?? '');
@@ -535,6 +541,117 @@ class _RoomCard extends StatelessWidget {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     return '$day/$month/${date.year}';
+  }
+
+  /// Fungsi untuk menangani proses pembayaran dengan Midtrans
+  Future<void> _handlePayment(BuildContext context) async {
+    if (user.id == null || user.hargaSewa == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data pengguna tidak lengkap.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Generate Order ID unik: ORDER-{userId}-{timestamp}
+      final now = DateTime.now();
+      final orderId = 'ORDER-${user.id}-${now.millisecondsSinceEpoch}';
+
+      // Ambil nama pelanggan
+      final customerName = user.namaLengkap ?? 'Tenant ${user.id}';
+
+      // Panggil API Midtrans Snap
+      final result = await _api.getMidtransSnapUrl(
+        orderId: orderId,
+        amount: user.hargaSewa!,
+        customerName: customerName,
+      );
+
+      // Tutup loading dialog
+      if (context.mounted) Navigator.pop(context);
+
+      if (!result.success) {
+        // Error dari Midtrans
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Gagal membuat transaksi.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Simpan payment record ke database dengan order_id dan snap_url
+      final now_format = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final payment = PaymentModel(
+        userId: user.id!,
+        amount: user.hargaSewa!,
+        status: PaymentStatus.pending,
+        bulan: now_format,
+        createdAt: now,
+        orderId: orderId,
+        snapUrl: result.redirectUrl,
+      );
+
+      final paymentId = await _db.createPayment(payment);
+
+      if (paymentId < 0) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal menyimpan data pembayaran.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Buka Midtrans Snap URL di external browser
+      final snapUrl = result.redirectUrl!;
+      final uri = Uri.parse(snapUrl);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tidak bisa membuka URL: $snapUrl'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -611,7 +728,8 @@ class _RoomCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              // ─── PENTING: Tombol Bayar memanggil fungsi pembayaran Midtrans ───
+              onPressed: () => _handlePayment(context),
               icon: const Icon(Icons.payments_outlined, size: 18),
               label: const Text('Bayar Sekarang'),
               style: OutlinedButton.styleFrom(

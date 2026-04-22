@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/constants.dart';
@@ -271,6 +272,118 @@ Ingatkan *${_escapeTg(tenantName)}*, kamar *${_escapeTg(nomorKamar.isNotEmpty ? 
     }
   }
 
+  // ─── Midtrans Payment Gateway ──────────────────────────────────────────────
+
+  /// Membuat transaksi Midtrans Snap dan mengembalikan redirect_url
+  /// 
+  /// Parameter:
+  /// - [orderId]: ID unik transaksi (format: "ORDER-{userId}-{timestamp}")
+  /// - [amount]: Jumlah pembayaran dalam Rupiah (integer)
+  /// - [customerName]: Nama pelanggan untuk invoice
+  /// 
+  /// Return: MidtransResult dengan redirect_url atau error message
+  Future<MidtransResult> getMidtransSnapUrl({
+    required String orderId,
+    required int amount,
+    required String customerName,
+  }) async {
+    // Validasi koneksi internet
+    if (!await hasInternet()) {
+      return MidtransResult.error('Tidak ada koneksi internet. Periksa jaringan Anda.');
+    }
+
+    // Validasi kredensial Midtrans
+    if (AppConstants.MIDTRANS_SERVER_KEY.isEmpty) {
+      return MidtransResult.error(
+        'Midtrans Server Key belum dikonfigurasi. Hubungi administrator. '
+        'Dapatkan key dari: https://dashboard.sandbox.midtrans.com/settings/config',
+      );
+    }
+
+    if (AppConstants.MIDTRANS_CLIENT_KEY.isEmpty) {
+      return MidtransResult.error(
+        'Midtrans Client Key belum dikonfigurasi. Hubungi administrator. '
+        'Dapatkan key dari: https://dashboard.sandbox.midtrans.com/settings/config',
+      );
+    }
+
+    // Validasi parameter
+    if (orderId.isEmpty || amount <= 0 || customerName.isEmpty) {
+      return MidtransResult.error('Parameter tidak valid.');
+    }
+
+    try {
+      // Encode Server Key ke Base64 untuk Basic Auth
+      final credentials = base64Encode(
+        utf8.encode('${AppConstants.MIDTRANS_SERVER_KEY}:'),
+      );
+
+      // Persiapan payload
+      final payload = {
+        'transaction_details': {
+          'order_id': orderId,
+          'gross_amount': amount,
+        },
+        'customer_details': {
+          'first_name': customerName,
+          'email': 'kostify-tenant@kos.local', // Email placeholder
+          'phone': '62812345678', // Phone placeholder
+        },
+        'callbacks': {
+          'finish': 'https://app.example.com/payment-finish', // Callback URL
+        },
+      };
+
+      // Hit Midtrans Snap API
+      final response = await http
+          .post(
+            Uri.parse(AppConstants.MIDTRANS_BASE_URL),
+            headers: {
+              'Authorization': 'Basic $credentials',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(_timeout);
+
+      // Parsing response
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final redirectUrl = data['redirect_url'] as String?;
+
+        if (redirectUrl == null || redirectUrl.isEmpty) {
+          return MidtransResult.error(
+            'Midtrans tidak mengembalikan redirect_url. Coba lagi.',
+          );
+        }
+
+        return MidtransResult.success(redirectUrl);
+      } else if (response.statusCode == 401) {
+        return MidtransResult.error(
+          'Kredensial Midtrans tidak valid. Periksa Server Key Anda.',
+        );
+      } else if (response.statusCode == 400) {
+        final data = jsonDecode(response.body);
+        final message = data['validation_messages']?[0] ?? 'Data tidak valid.';
+        return MidtransResult.error('Validasi gagal: $message');
+      } else {
+        return MidtransResult.error(
+          'Gagal membuat transaksi Midtrans (${response.statusCode}). Coba lagi.',
+        );
+      }
+    } on TimeoutException {
+      return MidtransResult.error(
+        'Koneksi ke Midtrans timeout. Periksa internet dan coba lagi.',
+      );
+    } on SocketException {
+      return MidtransResult.error('Tidak ada koneksi internet. Periksa jaringan Anda.');
+    } on FormatException {
+      return MidtransResult.error('Response dari Midtrans tidak valid.');
+    } on Exception catch (e) {
+      return MidtransResult.error('Terjadi kesalahan: ${e.toString()}');
+    }
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   String _escapeTg(String text) {
@@ -328,4 +441,20 @@ class ExchangeRateResult {
 
   factory ExchangeRateResult.error(String error) =>
       ExchangeRateResult._(success: false, error: error);
+}
+
+// ─── Midtrans Result ───────────────────────────────────────────────────────────
+
+class MidtransResult {
+  final bool success;
+  final String? redirectUrl;
+  final String? error;
+
+  MidtransResult._({required this.success, this.redirectUrl, this.error});
+
+  factory MidtransResult.success(String redirectUrl) =>
+      MidtransResult._(success: true, redirectUrl: redirectUrl);
+
+  factory MidtransResult.error(String error) =>
+      MidtransResult._(success: false, error: error);
 }
