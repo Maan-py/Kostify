@@ -514,6 +514,21 @@ class DatabaseHelper {
     }
   }
 
+  Future<int> updatePaymentRecord(PaymentModel payment) async {
+    try {
+      final db = await database;
+      if (payment.id == null) return 0;
+      return await db.update(
+        'payments',
+        payment.toMap(),
+        where: 'id = ?',
+        whereArgs: [payment.id],
+      );
+    } catch (e) {
+      return 0;
+    }
+  }
+
   /// Statistik: Total pendapatan bulan ini (dari payment yang lunas)
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
@@ -567,6 +582,23 @@ class DatabaseHelper {
       };
     }
   }
+
+  Future<PaymentModel?> getLatestPayment(int userId) async {
+    final db = await database;
+    // Ambil data dari tabel payments, urutkan dari ID terbesar (terbaru)
+    final result = await db.query(
+      'payments',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+
+  if (result.isNotEmpty) {
+    return PaymentModel.fromMap(result.first);
+  }
+  return null; // Balikin null kalau emang belum ada tagihan sama sekali
+}
 
   // ─── EMERGENCY LOG CRUD ────────────────────────────────────────────────────
 
