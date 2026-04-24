@@ -1,15 +1,18 @@
 // lib/views/tenant/tenant_dashboard_screen.dart
 
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../models/user_model.dart';
+import '../../models/payment_model.dart';
+import '../../controllers/tenant_controller.dart';
 import '../../models/emergency_log_model.dart';
 import '../../services/database_helper.dart';
 import '../../services/sensor_service.dart';
@@ -19,7 +22,6 @@ import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'tools_screen.dart';
 import 'tenant_map_screen.dart';
-import '../../models/payment_model.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
   const TenantDashboardScreen({super.key});
@@ -90,25 +92,80 @@ class _TenantHomeTab extends StatefulWidget {
   State<_TenantHomeTab> createState() => _TenantHomeTabState();
 }
 
-class _TenantHomeTabState extends State<_TenantHomeTab> {
+class _TenantHomeTabState extends State<_TenantHomeTab> with WidgetsBindingObserver {
   final _auth = AuthController.to;
   final _sensor = SensorService();
   final _api = ApiService();
   final _db = DatabaseHelper();
+  final _tenantController = Get.put(TenantController());
 
   bool _shakeActive = false;
   bool _emergencySent = false;
+  bool _latestPaymentLoaded = false;
+  late final Timer _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startShakeDetection();
+    // Auto-refresh payment data setiap 30 detik
+    _autoRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        final user = _auth.currentUser.value;
+        if (user != null) {
+          _tenantController.fetchLatestPayment(user.id!);
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sensor.stopShakeDetection();
+    _autoRefreshTimer.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncPendingPayments();
+    }
+  }
+
+  Future<void> _syncPendingPayments() async {
+    final user = _auth.currentUser.value;
+    if (user == null) return;
+    
+    final payments = await _db.getPaymentsByUser(user.id!);
+    bool hasUpdate = false;
+    for (var payment in payments) {
+      if (payment.status == PaymentStatus.pending && payment.orderId != null) {
+        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        if (statusResult != null) {
+          final statusMidtrans = statusResult['transaction_status'];
+          if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
+            await _db.updatePaymentStatus(payment.id!, PaymentStatus.paid);
+            hasUpdate = true;
+          }
+        }
+      }
+    }
+
+    if (hasUpdate && mounted) {
+      await _tenantController.fetchLatestPayment(user.id!);
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Pembayaran berhasil diperbarui menjadi Lunas!'),
+          backgroundColor: Color(0xFF1BC0BA),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _startShakeDetection() {
@@ -129,6 +186,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
       await _sendEmergency();
     }
 
+    if (mounted)
+      setState(() {
+        _shakeActive = false;
+      });
     if (mounted)
       setState(() {
         _shakeActive = false;
@@ -202,8 +263,18 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
           final user = _auth.currentUser.value;
           if (user == null)
             return const Center(child: CircularProgressIndicator());
+
+          if (!_latestPaymentLoaded) {
+            _tenantController.fetchLatestPayment(user.id!).whenComplete(() {
+              if (mounted) setState(() => _latestPaymentLoaded = true);
+            });
+          }
+
           return RefreshIndicator(
-            onRefresh: _auth.refreshUser,
+            onRefresh: () async {
+              await _auth.refreshUser();
+              await _syncPendingPayments();
+            },
             color: const Color(0xFF1BC0BA),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -239,7 +310,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
                   const SizedBox(height: 16),
 
                   // Kartu pembayaran
-                  _PaymentCard(userId: user.id!),
+                  _PaymentCard(key: UniqueKey(), userId: user.id!),
                   const SizedBox(height: 16),
 
                   // Emergency button
@@ -566,7 +637,11 @@ class _GreetingHeader extends StatelessWidget {
 
 class _RoomCard extends StatelessWidget {
   final UserModel user;
-  const _RoomCard({required this.user});
+
+  _RoomCard({required this.user});
+
+  final _db = DatabaseHelper();
+  final _api = ApiService();
 
   DateTime? _nextPaymentDeadline() {
     final masuk = DateTime.tryParse(user.tanggalMasuk ?? '');
@@ -597,10 +672,102 @@ class _RoomCard extends StatelessWidget {
     return '$day/$month/${date.year}';
   }
 
+  /// Fungsi untuk menangani proses pembayaran dengan Midtrans
+  Future<void> _handlePayment(BuildContext context, PaymentModel pendingPayment) async {
+    if (user.id == null || pendingPayment.amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data tagihan tidak valid.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Tampilkan loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF1BC0BA)),
+      ),
+    );
+
+    try {
+      // Generate Order ID unik: ORDER-{userId}-{timestamp}
+      final now = DateTime.now();
+      final orderId = 'ORDER-${user.id}-${now.millisecondsSinceEpoch}';
+
+      // Ambil nama pelanggan
+      final customerName = user.namaLengkap ?? 'Tenant ${user.id}';
+
+      // Panggil API Midtrans Snap
+      final result = await _api.getMidtransSnapUrl(
+        orderId: orderId,
+        amount: pendingPayment.amount,
+        customerName: customerName,
+      );
+
+      // Tutup loading dialog
+      if (context.mounted) Navigator.pop(context);
+
+      if (!result.success) {
+        // Error dari Midtrans
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Gagal membuat transaksi.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Update payment record yang sedang di proses dengan orderId dan snapUrl baru
+      final updatedPayment = pendingPayment.copyWith(
+        orderId: orderId,
+        snapUrl: result.redirectUrl,
+      );
+      await _db.updatePaymentRecord(updatedPayment);
+
+      // Buka Midtrans Snap URL di external browser
+      final snapUrl = result.redirectUrl!;
+      final uri = Uri.parse(snapUrl);
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tidak bisa membuka URL: $snapUrl'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final deadline = _nextPaymentDeadline();
-
+final _tenantController = Get.put(TenantController());
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -684,21 +851,37 @@ class _RoomCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.payments_outlined, size: 18),
-              label: const Text('Bayar Sekarang'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white54),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
+          Obx(() {
+            // Ambil data tagihan terbaru dari controller
+            final payment = _tenantController.latestPayment.value;
+
+            // LOGIKA 1: Kalau admin belum buat tagihan (data null), jangan munculin apa-apa
+            if (payment == null) {
+              return const SizedBox.shrink();
+            }
+
+            // LOGIKA 2: Kalau statusnya belum lunas, munculin tombol bayar
+            if (payment.status != PaymentStatus.paid) {
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _handlePayment(context, payment),
+                  icon: const Icon(Icons.payments_outlined, size: 18),
+                  label: const Text('Bayar Sekarang'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              );
+            }
+
+            // Kalau sudah lunas, tombol tidak ditampilkan.
+            return const SizedBox.shrink();
+          })
         ],
       ),
     );
@@ -707,7 +890,7 @@ class _RoomCard extends StatelessWidget {
 
 class _PaymentCard extends StatefulWidget {
   final int userId;
-  const _PaymentCard({required this.userId});
+  const _PaymentCard({super.key, required this.userId});
 
   @override
   State<_PaymentCard> createState() => _PaymentCardState();
@@ -770,15 +953,15 @@ class _PaymentCardState extends State<_PaymentCard> {
 }
 
 class _PaymentRow extends StatelessWidget {
-  // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca 
+  // UPDATE: Ganti 'dynamic' menjadi 'PaymentModel' agar extension terbaca
   // re-update
-  final PaymentModel payment; 
+  final PaymentModel payment;
   const _PaymentRow({required this.payment});
 
   @override
   Widget build(BuildContext context) {
     // UPDATE: Bandingkan langsung dengan enum, lebih aman dan efisien
-    final isPaid = payment.status == PaymentStatus.paid; 
+    final isPaid = payment.status == PaymentStatus.paid;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -1059,7 +1242,6 @@ class _EmergencyCountdownDialog extends StatefulWidget {
 
 class _EmergencyCountdownDialogState extends State<_EmergencyCountdownDialog> {
   int _countdown = 3;
-  late final dynamic _timer;
 
   @override
   void initState() {

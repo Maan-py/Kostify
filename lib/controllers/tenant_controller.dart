@@ -15,6 +15,7 @@ class TenantController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString searchQuery = ''.obs;
   final Rx<bool?> filterActive = Rx<bool?>(null); // null = semua
+  final Rxn<PaymentModel> latestPayment = Rxn<PaymentModel>();
 
   @override
   void onInit() {
@@ -37,6 +38,16 @@ class TenantController extends GetxController {
       tenants.value = result;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> fetchLatestPayment(int userId) async {
+    try {
+      // Pastikan fungsi ini sudah ada di DatabaseHelper kamu ya!
+      final result = await _db.getLatestPayment(userId);
+      latestPayment.value = result;
+    } catch (e) {
+      print("Gagal ambil tagihan: $e");
     }
   }
 
@@ -63,3 +74,4 @@ class TenantController extends GetxController {
   int get activeCount => tenants.where((t) => t.isActive).length;
   int get inactiveCount => tenants.where((t) => !t.isActive).length;
 }
+

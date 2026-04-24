@@ -76,6 +76,8 @@ class DatabaseHelper {
         created_at TEXT NOT NULL,
         paid_at TEXT,
         keterangan TEXT,
+        order_id TEXT,
+        snap_url TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
@@ -128,17 +130,34 @@ class DatabaseHelper {
       ''');
     }
 
-    if (oldVersion < 3) {
-      // Cara aman: Tambah kolom tanpa hapus tabel
-  try {
-    await db.execute("ALTER TABLE users ADD COLUMN telepon TEXT NOT NULL DEFAULT ''");
-  } catch (e) {
-    // Jika kolom ternyata sudah ada, aplikasi tidak akan crash
-    print("Kolom telepon mungkin sudah ada: $e");
-  }
-  
-  // Pastikan data lama tidak ada yang null di kolom telepon
-  await db.execute("UPDATE users SET telepon = '' WHERE telepon IS NULL");
+    if (oldVersion < 4) {
+      // ─── Migration: Tambah kolom order_id dan snap_url ke payments ────────
+      try {
+        await db.execute(
+          'ALTER TABLE payments ADD COLUMN order_id TEXT',
+        );
+      } catch (e) {
+        // Kolom order_id mungkin sudah ada
+        print('Kolom order_id mungkin sudah ada: $e');
+      }
+
+      try {
+        await db.execute(
+          'ALTER TABLE payments ADD COLUMN snap_url TEXT',
+        );
+      } catch (e) {
+        // Kolom snap_url mungkin sudah ada
+        print('Kolom snap_url mungkin sudah ada: $e');
+      }
+    }
+
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN order_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN snap_url TEXT');
+      } catch (_) {}
     }
   }
 
@@ -506,6 +525,21 @@ class DatabaseHelper {
     }
   }
 
+  Future<int> updatePaymentRecord(PaymentModel payment) async {
+    try {
+      final db = await database;
+      if (payment.id == null) return 0;
+      return await db.update(
+        'payments',
+        payment.toMap(),
+        where: 'id = ?',
+        whereArgs: [payment.id],
+      );
+    } catch (e) {
+      return 0;
+    }
+  }
+
   /// Statistik: Total pendapatan bulan ini (dari payment yang lunas)
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
@@ -525,10 +559,10 @@ class DatabaseHelper {
       );
       final tenantAktif = (aktifResult.first['count'] as int?) ?? 0;
 
-      // Pendapatan bulan ini
+      // Pendapatan bulan ini (uang yang masuk bulan ini, atau tagihan bulan ini jika paid_at kosong)
       final pendapatanResult = await db.rawQuery(
-        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND bulan = ?",
-        [bulanIni],
+        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND (paid_at LIKE ? OR (paid_at IS NULL AND bulan = ?))",
+        ['$bulanIni%', bulanIni],
       );
       final pendapatanBulanIni = (pendapatanResult.first['total'] as int?) ?? 0;
 
@@ -559,6 +593,23 @@ class DatabaseHelper {
       };
     }
   }
+
+  Future<PaymentModel?> getLatestPayment(int userId) async {
+    final db = await database;
+    // Ambil data dari tabel payments, urutkan dari ID terbesar (terbaru)
+    final result = await db.query(
+      'payments',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+
+  if (result.isNotEmpty) {
+    return PaymentModel.fromMap(result.first);
+  }
+  return null; // Balikin null kalau emang belum ada tagihan sama sekali
+}
 
   // ─── EMERGENCY LOG CRUD ────────────────────────────────────────────────────
 
