@@ -1,186 +1,146 @@
-# 🏠 Kostify — Smart Boarding Management System
+# Kostify
 
-Flutter app untuk manajemen kos berbasis MVC. Dikembangkan untuk mata kuliah TPM.
+Kostify adalah aplikasi Flutter untuk manajemen kos berbasis role (admin dan tenant), dengan penyimpanan lokal SQLite, integrasi API eksternal, dan fitur pembayaran online.
 
----
+## Ringkasan Fitur
 
-## 📁 Struktur Folder
+- Autentikasi login + biometric (local_auth, secure storage).
+- Manajemen tenant (CRUD, aktivasi/nonaktif, detail profil, upload foto).
+- OCR KTP untuk bantu input data tenant.
+- Dashboard admin dan tenant.
+- Pembayaran kos dengan Midtrans Snap (sandbox) + pengecekan status transaksi.
+- Broadcast pengumuman admin ke tenant + inbox broadcast tenant.
+- Notifikasi lokal untuk pengumuman.
+- Emergency alert berbasis shake sensor + kirim alert ke Telegram.
+- AI chat assistant (Google Gemini).
+- Peta lokasi kos (Google Maps), tools kurs dan zona waktu.
+- Mini game Flappy Bird (tap dan gyroscope).
 
-```
+## Struktur Folder
+
+```text
 lib/
-├── main.dart                    # Entry point, routes, splash screen
-├── controllers/
-│   └── auth_controller.dart     # Login, biometric, session
-├── models/
-│   ├── user_model.dart
-│   ├── payment_model.dart
-│   └── emergency_log_model.dart
-├── services/
-│   ├── database_helper.dart     # SQLite CRUD
-│   ├── api_service.dart         # Gemini, Telegram, ExchangeRate
-│   └── sensor_service.dart      # Accelerometer & Gyroscope
-├── utils/
-│   ├── constants.dart           # API keys, warna, konfigurasi
-│   └── validators.dart          # Input validation & sanitasi
-└── views/
-    ├── auth/
-    │   └── login_screen.dart
-    ├── admin/
-    │   ├── admin_dashboard_screen.dart
-    │   ├── tenant_list_screen.dart
-    │   ├── add_tenant_screen.dart
-    │   └── admin_chat_screen.dart
-    ├── tenant/
-    │   ├── tenant_dashboard_screen.dart
-    │   ├── tools_screen.dart
-    │   ├── tenant_map_screen.dart
-    │   └── flappy_bird_screen.dart
-    └── shared/
-        └── saran_kesan_screen.dart
+|- main.dart
+|- controllers/
+|  |- auth_controller.dart
+|  |- tenant_controller.dart
+|- models/
+|  |- broadcast_model.dart
+|  |- emergency_log_model.dart
+|  |- payment_model.dart
+|  |- user_model.dart
+|- services/
+|  |- api_service.dart
+|  |- connectivity_service.dart
+|  |- database_helper.dart
+|  |- notification_service.dart
+|  |- sensor_service.dart
+|- utils/
+|  |- constants.dart
+|  |- validators.dart
+|- views/
+|  |- admin/
+|  |  |- add_tenant_screen.dart
+|  |  |- admin_broadcast_screen.dart
+|  |  |- admin_chat_screen.dart
+|  |  |- admin_dashboard_screen.dart
+|  |  |- ktp_camera_capture_screen.dart
+|  |  |- tenant_detail_screen.dart
+|  |  |- tenant_list_screen.dart
+|  |- auth/
+|  |  |- login_screen.dart
+|  |- shared/
+|  |  |- saran_kesan_screen.dart
+|  |- tenant/
+|     |- flappy_bird_screen.dart
+|     |- tenant_broadcast_screen.dart
+|     |- tenant_dashboard_screen.dart
+|     |- tenant_map_screen.dart
+|     |- tools_screen.dart
 ```
 
----
+## Setup Aplikasi
 
-## ⚙️ Setup Sebelum Jalankan
+### 1. Prasyarat
 
-### 1. Isi API Keys di `lib/utils/constants.dart`
+- Flutter SDK sesuai `pubspec.yaml` (Dart `>=3.0.0 <4.0.0`).
+- Android Studio / Xcode (jika build iOS).
+- Perangkat/emulator Android atau iOS.
 
-```dart
-static const String GEMINI_API_KEY = 'ISI_API_KEY_GEMINI_KAMU';
-static const String EXCHANGE_RATE_API_KEY = 'ISI_API_KEY_EXCHANGERATE';
-static const String TELEGRAM_BOT_TOKEN = 'ISI_TOKEN_BOT_TELEGRAM';
-static const String TELEGRAM_CHAT_ID = 'ISI_CHAT_ID_ADMIN';
-static const String GOOGLE_MAPS_API_KEY = 'ISI_API_KEY_GOOGLE_MAPS';
-```
-
-Cara dapat API key:
-- **Gemini**: https://aistudio.google.com/app/apikey
-- **ExchangeRate**: https://exchangerate-api.com (gratis 1500 req/bulan)
-- **Telegram Bot**: Chat @BotFather di Telegram → /newbot
-- **Google Maps**: https://console.cloud.google.com → Enable Maps SDK for Android/iOS
-
-### 2. Setup Google Maps API Key
-
-**Android** — `android/app/src/main/AndroidManifest.xml`:
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="ISI_API_KEY_GOOGLE_MAPS"/>
-```
-
-**iOS** — `ios/Runner/AppDelegate.swift`:
-```swift
-GMSServices.provideAPIKey("ISI_API_KEY_GOOGLE_MAPS")
-```
-
-### 3. Sesuaikan Info Kos
-
-Di `lib/utils/constants.dart`, ubah:
-```dart
-static const String KOS_NAME = 'Nama Kos Kamu';
-static const String KOS_ADDRESS = 'Alamat Kos Lengkap';
-static const double KOS_LATITUDE = -7.005145; // koordinat kos
-static const double KOS_LONGITUDE = 110.438125;
-```
-
-### 4. Sesuaikan Saran & Kesan
-
-Di `lib/views/shared/saran_kesan_screen.dart`:
-```dart
-static const _dosen = 'Nama Dosen Pengampu TPM';
-```
-
-### 5. Font Poppins
-
-Unduh font Poppins dari https://fonts.google.com/specimen/Poppins
-Simpan di `assets/fonts/`:
-- `Poppins-Regular.ttf`
-- `Poppins-Medium.ttf`
-- `Poppins-SemiBold.ttf`
-- `Poppins-Bold.ttf`
-
-### 6. Install Dependencies
+### 2. Install dependency
 
 ```bash
 flutter pub get
 ```
 
-> Catatan: fitur broadcast yang ditambahkan di aplikasi ini memakai SQLite + local notification.
-> Jika ingin broadcast benar-benar masuk ke semua HP tenant secara real-time, perlu backend bersama atau Firebase Cloud Messaging.
+### 3. Setup file env
 
-### 7. Android Permissions
+Project ini sudah menggunakan `flutter_dotenv` dan membaca kredensial dari file `.env`.
 
-Di `android/app/src/main/AndroidManifest.xml`, tambahkan:
-```xml
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-<uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-<uses-permission android:name="android.permission.CAMERA"/>
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-<uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"/>
+Langkah:
+
+1. Salin file contoh:
+
+```bash
+copy .env.example .env
 ```
 
-### 8. Android minSdkVersion
+2. Lengkapi semua variabel berikut di `.env`:
 
-Di `android/app/build.gradle`:
-```gradle
-minSdkVersion 23  // Wajib untuk biometric & local_auth
+```env
+GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_KEY
+GOOGLE_GEMINI_API_KEY=YOUR_GEMINI_KEY
+EXCHANGE_RATE_API_KEY=YOUR_EXCHANGERATE_KEY
+TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
+MIDTRANS_SERVER_KEY=YOUR_MIDTRANS_SERVER_KEY
+MIDTRANS_CLIENT_KEY=YOUR_MIDTRANS_CLIENT_KEY
 ```
 
----
+Catatan:
 
-## 🔐 Akun Default
+- `GOOGLE_MAPS_API_KEY` dan `GOOGLE_GEMINI_API_KEY` termasuk kredensial inti.
+- `MIDTRANS_*` wajib jika ingin fitur pembayaran online aktif.
+- `TELEGRAM_*` wajib jika ingin emergency alert terkirim ke Telegram.
+- `.env` sudah masuk `.gitignore`, jangan commit kredensial asli.
 
-| Role  | Username | Password  |
-|-------|----------|-----------|
-| Admin | `admin`  | `admin123` |
+### 4. Setup Google Maps
 
-> Password admin tersimpan dalam bentuk SHA-256 hash di database.
+- Android: key diambil otomatis dari `.env` lewat `android/app/build.gradle` dan disuntikkan ke `AndroidManifest.xml` via manifest placeholder.
+- iOS: key dibaca dari `.env` di `ios/Runner/AppDelegate.swift` lalu dipassing ke `GMSServices.provideAPIKey`.
 
----
+### 5. Jalankan aplikasi
 
-## 📱 Fitur Lengkap
+```bash
+flutter run
+```
 
-| Fitur | Status | Keterangan |
-|-------|--------|-----------|
-| Login + Biometric | ✅ | SHA-256 + Secure Storage session |
-| OCR KTP | ✅ | Google ML Kit, auto-fill form |
-| Manajemen Penghuni | ✅ | CRUD, filter, search, toggle status |
-| Nomor Kamar | ✅ | Hanya admin yang bisa ubah |
-| Dashboard Statistik | ✅ | Pendapatan, kamar terisi/kosong |
-| AI Chat (Gemini) | ✅ | Admin & tenant, konteks kos |
-| Emergency Shake | ✅ | Accelerometer, cooldown 5 detik |
-| Telegram Notif | ✅ | Bot API, simpan log offline |
-| Peta Lokasi Kos | ✅ | Google Maps + navigasi |
-| Konversi Mata Uang | ✅ | 6 mata uang, ExchangeRate API |
-| Konversi Waktu | ✅ | WIB, WITA, WIT, London |
-| Flappy Bird | ✅ | Dual mode: tap + gyroscope |
-| Foto Profil | ✅ | Upload dari kamera/galeri, compress |
-| Saran & Kesan TPM | ✅ | Form textarea, validasi lengkap |
-| Broadcast Tenant | ✅ | Compose broadcast, inbox tenant, local notification |
-| Error Handling | ✅ | Anti SQL injection, paste anomali |
+Jika ingin build release Android:
 
----
+```bash
+flutter build apk --release
+```
 
-## 🧪 Test Anomali (Dosen)
+## Kredensial Default
 
-Semua TextField sudah dilindungi:
-- **Max panjang**: tiap field ada batas karakter (paste artikel → otomatis dipotong)
-- **SQL Injection**: pattern `'`, `--`, `;`, `UNION`, `SELECT` dll diblokir
-- **XSS**: HTML tags & script difilter
-- **Spasi pada username**: diblokir lewat `FilteringTextInputFormatter`
-- **Digit only**: NIK & harga sewa hanya terima angka
+Akun admin default:
 
----
+- Username: `admin`
+- Password: `admin123`
 
-## 📞 Cara Test Telegram Bot
+Password disimpan dalam bentuk SHA-256 hash di database lokal SQLite.
 
-1. Buat bot baru via @BotFather: `/newbot`
-2. Catat token bot
-3. Kirim pesan ke bot kamu (supaya chat ID bisa dibaca)
-4. Buka: `https://api.telegram.org/bot{TOKEN}/getUpdates`
-5. Ambil nilai `chat.id` dari response
-6. Isi `TELEGRAM_CHAT_ID` dengan nilai tersebut
+## Catatan Konfigurasi
+
+- Info kos default (nama, alamat, koordinat) masih ada di `lib/utils/constants.dart`.
+- API key tidak lagi di-hardcode dalam source, tetapi dibaca dari `.env`.
+- Broadcast saat ini menggunakan SQLite lokal + local notification (bukan push notification server).
+
+## Cara Ambil Credential API
+
+- Google Gemini: https://aistudio.google.com/app/apikey
+- Google Maps: aktifkan Maps SDK for Android/iOS di Google Cloud Console
+- ExchangeRate API: https://www.exchangerate-api.com
+- Telegram Bot Token: buat bot lewat `@BotFather` (`/newbot`)
+- Telegram Chat ID: kirim pesan ke bot lalu cek `https://api.telegram.org/bot<TOKEN>/getUpdates`
+- Midtrans Sandbox Keys: https://dashboard.sandbox.midtrans.com/settings/config
