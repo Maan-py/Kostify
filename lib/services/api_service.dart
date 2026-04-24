@@ -369,6 +369,33 @@ class ApiService {
     }
   }
 
+  /// Cek status transaksi Midtrans berdasarkan order_id
+  Future<Map<String, dynamic>?> checkMidtransTransactionStatus(String orderId) async {
+    if (!await hasInternet()) return null;
+    if (AppConstants.MIDTRANS_SERVER_KEY.isEmpty) return null;
+
+    try {
+      final credentials = base64Encode(
+        utf8.encode('${AppConstants.MIDTRANS_SERVER_KEY}:'),
+      );
+
+      final response = await http.get(
+        Uri.parse('https://api.sandbox.midtrans.com/v2/$orderId/status'),
+        headers: {
+          'Authorization': 'Basic $credentials',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   String _escapeTg(String text) {

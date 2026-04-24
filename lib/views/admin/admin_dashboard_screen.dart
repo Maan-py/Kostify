@@ -20,12 +20,19 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    _AdminHomeTab(),
-    TenantListScreen(),
-    AdminChatScreen(),
-    _AdminProfileTab(),
-  ];
+  final GlobalKey<_AdminHomeTabState> _homeKey = GlobalKey<_AdminHomeTabState>();
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      _AdminHomeTab(key: _homeKey),
+      const TenantListScreen(),
+      const AdminChatScreen(),
+      const _AdminProfileTab(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +43,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        onDestinationSelected: (i) {
+          setState(() => _currentIndex = i);
+          if (i == 0) {
+            _homeKey.currentState?._loadStats();
+          }
+        },
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFF8095E4).withOpacity(0.15),
         destinations: const [
@@ -71,7 +83,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 // ─── Tab 1: Ringkasan Statistik ────────────────────────────────────────────────
 
 class _AdminHomeTab extends StatefulWidget {
-  const _AdminHomeTab();
+  const _AdminHomeTab({super.key});
 
   @override
   State<_AdminHomeTab> createState() => _AdminHomeTabState();
@@ -89,13 +101,13 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
   }
 
   Future<void> _loadStats() async {
-    setState(() => _isLoading = true);
     final stats = await _db.getDashboardStats();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _stats = stats;
         _isLoading = false;
       });
+    }
   }
 
   @override

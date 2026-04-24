@@ -34,6 +34,32 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     _loadPayments();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncMidtransPayments();
+  }
+
+  Future<void> _syncMidtransPayments() async {
+    final payments = await _db.getPaymentsByUser(_tenant.id!);
+    bool hasUpdate = false;
+    for (var payment in payments) {
+      if (payment.status == PaymentStatus.pending && payment.orderId != null) {
+        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        if (statusResult != null) {
+          final statusMidtrans = statusResult['transaction_status'];
+          if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
+            await _db.updatePaymentStatus(payment.id!, PaymentStatus.paid);
+            hasUpdate = true;
+          }
+        }
+      }
+    }
+    if (hasUpdate) {
+      _loadPayments();
+    }
+  }
+
   Future<void> _loadPayments() async {
     setState(() => _isLoading = true);
     final payments = await _db.getPaymentsByUser(_tenant.id!);
@@ -387,6 +413,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
               child: CircularProgressIndicator(color: Color(0xFF8095E4)))
           : RefreshIndicator(
               onRefresh: () async {
+                await _syncMidtransPayments();
                 await _loadPayments();
                 await _refreshTenant();
               },

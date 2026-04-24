@@ -76,6 +76,8 @@ class DatabaseHelper {
         created_at TEXT NOT NULL,
         paid_at TEXT,
         keterangan TEXT,
+        order_id TEXT,
+        snap_url TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
@@ -147,6 +149,15 @@ class DatabaseHelper {
         // Kolom snap_url mungkin sudah ada
         print('Kolom snap_url mungkin sudah ada: $e');
       }
+    }
+
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN order_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN snap_url TEXT');
+      } catch (_) {}
     }
   }
 
@@ -548,10 +559,10 @@ class DatabaseHelper {
       );
       final tenantAktif = (aktifResult.first['count'] as int?) ?? 0;
 
-      // Pendapatan bulan ini
+      // Pendapatan bulan ini (uang yang masuk bulan ini, atau tagihan bulan ini jika paid_at kosong)
       final pendapatanResult = await db.rawQuery(
-        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND bulan = ?",
-        [bulanIni],
+        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND (paid_at LIKE ? OR (paid_at IS NULL AND bulan = ?))",
+        ['$bulanIni%', bulanIni],
       );
       final pendapatanBulanIni = (pendapatanResult.first['total'] as int?) ?? 0;
 

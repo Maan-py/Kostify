@@ -92,7 +92,7 @@ class _TenantHomeTab extends StatefulWidget {
   State<_TenantHomeTab> createState() => _TenantHomeTabState();
 }
 
-class _TenantHomeTabState extends State<_TenantHomeTab> {
+class _TenantHomeTabState extends State<_TenantHomeTab> with WidgetsBindingObserver {
   final _auth = AuthController.to;
   final _sensor = SensorService();
   final _api = ApiService();
@@ -107,6 +107,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startShakeDetection();
     // Auto-refresh payment data setiap 30 detik
     _autoRefreshTimer = Timer.periodic(
@@ -122,9 +123,49 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sensor.stopShakeDetection();
     _autoRefreshTimer.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncPendingPayments();
+    }
+  }
+
+  Future<void> _syncPendingPayments() async {
+    final user = _auth.currentUser.value;
+    if (user == null) return;
+    
+    final payments = await _db.getPaymentsByUser(user.id!);
+    bool hasUpdate = false;
+    for (var payment in payments) {
+      if (payment.status == PaymentStatus.pending && payment.orderId != null) {
+        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        if (statusResult != null) {
+          final statusMidtrans = statusResult['transaction_status'];
+          if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
+            await _db.updatePaymentStatus(payment.id!, PaymentStatus.paid);
+            hasUpdate = true;
+          }
+        }
+      }
+    }
+
+    if (hasUpdate && mounted) {
+      await _tenantController.fetchLatestPayment(user.id!);
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Pembayaran berhasil diperbarui menjadi Lunas!'),
+          backgroundColor: Color(0xFF1BC0BA),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _startShakeDetection() {
@@ -230,7 +271,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
           }
 
           return RefreshIndicator(
-            onRefresh: _auth.refreshUser,
+            onRefresh: () async {
+              await _auth.refreshUser();
+              await _syncPendingPayments();
+            },
             color: const Color(0xFF1BC0BA),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -266,7 +310,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
                   const SizedBox(height: 16),
 
                   // Kartu pembayaran
-                  _PaymentCard(userId: user.id!),
+                  _PaymentCard(key: UniqueKey(), userId: user.id!),
                   const SizedBox(height: 16),
 
                   // Emergency button
@@ -629,23 +673,23 @@ class _RoomCard extends StatelessWidget {
   }
 
   /// Fungsi untuk menangani proses pembayaran dengan Midtrans
-  Future<void> _handlePayment(BuildContext context) async {
-    if (user.id == null || user.hargaSewa == null) {
+  Future<void> _handlePayment(BuildContext context, PaymentModel pendingPayment) async {
+    if (user.id == null || pendingPayment.amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Data pengguna tidak lengkap.'),
+          content: Text('Data tagihan tidak valid.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Show loading dialog
+    // Tampilkan loading
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(),
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF1BC0BA)),
       ),
     );
 
@@ -660,7 +704,7 @@ class _RoomCard extends StatelessWidget {
       // Panggil API Midtrans Snap
       final result = await _api.getMidtransSnapUrl(
         orderId: orderId,
-        amount: user.hargaSewa!,
+        amount: pendingPayment.amount,
         customerName: customerName,
       );
 
@@ -681,47 +725,12 @@ class _RoomCard extends StatelessWidget {
         return;
       }
 
-      // Cek apakah sudah ada payment untuk bulan ini
-      final now_format = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-      final existingPayment = await _db.getPaymentByUserAndBulan(user.id!, now_format);
-
-      int? paymentId;
-      
-      if (existingPayment != null) {
-        // Jika sudah ada, update order_id dan snap_url
-        paymentId = existingPayment.id;
-        final updatedPayment = existingPayment.copyWith(
-          orderId: orderId,
-          snapUrl: result.redirectUrl,
-          status: PaymentStatus.pending,
-        );
-        await _db.updatePaymentRecord(updatedPayment);
-      } else {
-        // Jika belum ada, create payment record baru
-        final payment = PaymentModel(
-          userId: user.id!,
-          amount: user.hargaSewa!,
-          status: PaymentStatus.pending,
-          bulan: now_format,
-          createdAt: now,
-          orderId: orderId,
-          snapUrl: result.redirectUrl,
-        );
-
-        paymentId = await _db.createPayment(payment);
-
-        if (paymentId < 0) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Gagal menyimpan data pembayaran.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
-      }
+      // Update payment record yang sedang di proses dengan orderId dan snapUrl baru
+      final updatedPayment = pendingPayment.copyWith(
+        orderId: orderId,
+        snapUrl: result.redirectUrl,
+      );
+      await _db.updatePaymentRecord(updatedPayment);
 
       // Buka Midtrans Snap URL di external browser
       final snapUrl = result.redirectUrl!;
@@ -856,7 +865,7 @@ final _tenantController = Get.put(TenantController());
               return SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _handlePayment(context),
+                  onPressed: () => _handlePayment(context, payment),
                   icon: const Icon(Icons.payments_outlined, size: 18),
                   label: const Text('Bayar Sekarang'),
                   style: OutlinedButton.styleFrom(
@@ -881,7 +890,7 @@ final _tenantController = Get.put(TenantController());
 
 class _PaymentCard extends StatefulWidget {
   final int userId;
-  const _PaymentCard({required this.userId});
+  const _PaymentCard({super.key, required this.userId});
 
   @override
   State<_PaymentCard> createState() => _PaymentCardState();
