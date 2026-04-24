@@ -149,6 +149,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
       setState(() {
         _shakeActive = false;
       });
+    if (mounted)
+      setState(() {
+        _shakeActive = false;
+      });
   }
 
   Future<bool> _showEmergencyCountdown() async {
@@ -250,7 +254,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab> {
                       icon: const Icon(Icons.campaign_rounded, size: 18),
                       label: const Text('Broadcast Pengumuman'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1BC0BA),
+                        backgroundColor: const Color(0xFF6B7FD7),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -759,7 +763,7 @@ final _tenantController = Get.put(TenantController());
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1BC0BA), Color(0xFF0F9E98)],
+          colors: [Color(0xFF1BC0BA), Color(0xFF6B7FD7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
