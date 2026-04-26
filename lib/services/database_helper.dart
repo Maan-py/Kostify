@@ -610,8 +610,7 @@ class DatabaseHelper {
       return {
         'total_tenant': totalTenant,
         'tenant_aktif': tenantAktif,
-        'tenant_nonaktif':
-          (AppConstants.ROOM_LABELS.length - tenantAktif)
+        'tenant_nonaktif': (AppConstants.ROOM_LABELS.length - tenantAktif)
             .clamp(0, AppConstants.ROOM_LABELS.length),
         'total_kamar': AppConstants.ROOM_LABELS.length,
         'pendapatan_bulan_ini': pendapatanBulanIni,

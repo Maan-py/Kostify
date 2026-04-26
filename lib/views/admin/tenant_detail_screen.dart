@@ -48,7 +48,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     bool hasUpdate = false;
     for (var payment in payments) {
       if (payment.status == PaymentStatus.pending && payment.orderId != null) {
-        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        final statusResult =
+            await _api.checkMidtransTransactionStatus(payment.orderId!);
         if (statusResult != null) {
           final statusMidtrans = statusResult['transaction_status'];
           if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
@@ -120,8 +121,9 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
   Future<void> _addPayment() async {
     final now = DateTime.now();
+    DateTime selectedBillingDate = DateTime(now.year, now.month, 1);
     final bulanCtrl = TextEditingController(
-      text: '${now.year}-${now.month.toString().padLeft(2, '0')}',
+      text: '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}',
     );
     final amountCtrl = TextEditingController(
       text: _tenant.hargaSewa?.toString() ?? '',
@@ -141,13 +143,27 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
               children: [
                 TextField(
                   controller: bulanCtrl,
-                  maxLength: 7,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
-                    LengthLimitingTextInputFormatter(7),
-                  ],
+                  readOnly: true,
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: selectedBillingDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked == null) return;
+                    setDialogState(() {
+                      selectedBillingDate = DateTime(picked.year, picked.month, 1);
+                      bulanCtrl.text =
+                          '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
+                    });
+                  },
                   decoration: const InputDecoration(
-                      labelText: 'Bulan (yyyy-MM)', counterText: ''),
+                    labelText: 'Tanggal Tagihan *',
+                    hintText: 'Pilih dengan kalender',
+                    prefixIcon: Icon(Icons.calendar_month_rounded),
+                    counterText: '',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -314,13 +330,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                       final canSelect = selectableRooms.contains(room);
                       final isSelected = selectedRoom == room;
 
-                        final bgColor = canSelect
-                            ? success.withOpacity(0.12)
-                            : danger.withOpacity(0.12);
-                        final borderColor = isSelected
-                          ? primary
-                            : (canSelect ? success : danger);
-                          final textColor = canSelect ? success : danger;
+                      final bgColor = canSelect
+                          ? success.withOpacity(0.12)
+                          : danger.withOpacity(0.12);
+                      final borderColor =
+                          isSelected ? primary : (canSelect ? success : danger);
+                      final textColor = canSelect ? success : danger;
 
                       return InkWell(
                         onTap: canSelect
@@ -622,24 +637,24 @@ class _InfoCard extends StatelessWidget {
                 radius: 28,
                 backgroundColor: const Color(0xFF8095E4).withOpacity(0.12),
                 backgroundImage: tenant.fotoProfilPath != null &&
-                    tenant.fotoProfilPath!.trim().isNotEmpty &&
-                    File(tenant.fotoProfilPath!).existsSync()
-                  ? FileImage(File(tenant.fotoProfilPath!))
-                  : null,
+                        tenant.fotoProfilPath!.trim().isNotEmpty &&
+                        File(tenant.fotoProfilPath!).existsSync()
+                    ? FileImage(File(tenant.fotoProfilPath!))
+                    : null,
                 child: (tenant.fotoProfilPath == null ||
-                    tenant.fotoProfilPath!.trim().isEmpty ||
-                    !File(tenant.fotoProfilPath!).existsSync())
-                  ? Text(
-                    (tenant.namaLengkap?.isNotEmpty == true
-                        ? tenant.namaLengkap![0]
-                        : tenant.username[0])
-                      .toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      color: Color(0xFF8095E4),
-                      fontWeight: FontWeight.w700),
-                    )
-                  : null,
+                        tenant.fotoProfilPath!.trim().isEmpty ||
+                        !File(tenant.fotoProfilPath!).existsSync())
+                    ? Text(
+                        (tenant.namaLengkap?.isNotEmpty == true
+                                ? tenant.namaLengkap![0]
+                                : tenant.username[0])
+                            .toUpperCase(),
+                        style: const TextStyle(
+                            fontSize: 22,
+                            color: Color(0xFF8095E4),
+                            fontWeight: FontWeight.w700),
+                      )
+                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(

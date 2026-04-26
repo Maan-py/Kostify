@@ -166,13 +166,12 @@ class _TenantListScreenState extends State<TenantListScreen> {
                       final canSelect = selectableRooms.contains(room);
                       final isSelected = selectedRoom == room;
 
-                        final bgColor = canSelect
-                            ? success.withOpacity(0.12)
-                            : danger.withOpacity(0.12);
-                        final borderColor = isSelected
-                          ? primary
-                            : (canSelect ? success : danger);
-                          final textColor = canSelect ? success : danger;
+                      final bgColor = canSelect
+                          ? success.withOpacity(0.12)
+                          : danger.withOpacity(0.12);
+                      final borderColor =
+                          isSelected ? primary : (canSelect ? success : danger);
+                      final textColor = canSelect ? success : danger;
 
                       return InkWell(
                         onTap: canSelect
@@ -470,24 +469,24 @@ class _TenantCard extends StatelessWidget {
                     radius: 22,
                     backgroundColor: const Color(0xFF8095E4).withOpacity(0.12),
                     backgroundImage: tenant.fotoProfilPath != null &&
-                        tenant.fotoProfilPath!.trim().isNotEmpty &&
-                        File(tenant.fotoProfilPath!).existsSync()
-                      ? FileImage(File(tenant.fotoProfilPath!))
-                      : null,
+                            tenant.fotoProfilPath!.trim().isNotEmpty &&
+                            File(tenant.fotoProfilPath!).existsSync()
+                        ? FileImage(File(tenant.fotoProfilPath!))
+                        : null,
                     child: (tenant.fotoProfilPath == null ||
-                        tenant.fotoProfilPath!.trim().isEmpty ||
-                        !File(tenant.fotoProfilPath!).existsSync())
-                      ? Text(
-                        (tenant.namaLengkap?.isNotEmpty == true
-                            ? tenant.namaLengkap![0]
-                            : tenant.username[0])
-                          .toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF8095E4),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18),
-                        )
-                      : null,
+                            tenant.fotoProfilPath!.trim().isEmpty ||
+                            !File(tenant.fotoProfilPath!).existsSync())
+                        ? Text(
+                            (tenant.namaLengkap?.isNotEmpty == true
+                                    ? tenant.namaLengkap![0]
+                                    : tenant.username[0])
+                                .toUpperCase(),
+                            style: const TextStyle(
+                                color: Color(0xFF8095E4),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
