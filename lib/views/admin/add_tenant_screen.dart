@@ -90,6 +90,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       final rooms = await _db.getAvailableRooms();
       setState(() {
         _availableRooms = rooms;
+        if (_selectedKamar != null && !rooms.contains(_selectedKamar)) {
+          _selectedKamar = null;
+        }
         if (rooms.isNotEmpty && _selectedKamar == null) {
           _selectedKamar = rooms.first;
         }
@@ -1381,70 +1384,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : _availableRooms.isEmpty
-                ? Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      border: Border.all(color: Colors.red.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.red.shade700, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Semua kamar sudah terisi. Tidak ada kamar tersedia.',
-                            style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.red.shade700,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : DropdownButtonFormField<String>(
-                    value: _selectedKamar,
-                    onChanged: (value) =>
-                        setState(() => _selectedKamar = value),
-                    items: _availableRooms
-                        .map((kamar) => DropdownMenuItem(
-                              value: kamar,
-                              child: Text(kamar),
-                            ))
-                        .toList(),
-                    decoration: InputDecoration(
-                      labelText: 'Nomor Kamar *',
-                      hintText: 'Pilih kamar yang tersedia',
-                      prefixIcon: const Icon(Icons.bedroom_parent_rounded,
-                          size: 20, color: Color(0xFF8095E4)),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF8095E4), width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Nomor kamar wajib dipilih';
-                      }
-                      return null;
-                    },
-                  ),
+            : _buildVisualRoomMapping(),
         const SizedBox(height: 14),
         _FormField(
           controller: _hargaSewaCtrl,
@@ -1494,6 +1434,154 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ],
           validator: (v) => v?.trim().isEmpty ?? true ? 'Nomor telepon wajib diisi' : null,
         ),
+      ],
+    );
+  }
+
+  Widget _buildVisualRoomMapping() {
+    final allRooms = AppConstants.ROOM_LABELS;
+    final availableCount = _availableRooms.length;
+    final primary = Color(AppColors.primaryColor.toInt);
+    final textPrimary = Color(AppColors.textPrimary.toInt);
+    final textSecondary = Color(AppColors.textSecondary.toInt);
+    final success = Color(AppColors.successColor.toInt);
+    final danger = Color(AppColors.dangerColor.toInt);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.grid_view_rounded, size: 18, color: primary),
+            const SizedBox(width: 8),
+            Text(
+              'Visual Room Mapping',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: textPrimary,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Tersedia $availableCount/${allRooms.length}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: allRooms.map((room) {
+            final isAvailable = _availableRooms.contains(room);
+            final isSelected = _selectedKamar == room;
+            final bgColor = isAvailable ? success.withOpacity(0.12) : danger.withOpacity(0.12);
+            final borderColor = isSelected
+              ? primary
+              : (isAvailable ? success : danger);
+            final textColor = isAvailable ? success : danger;
+
+            return InkWell(
+              onTap: isAvailable
+                  ? () => setState(() {
+                        _selectedKamar = room;
+                      })
+                  : null,
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 70,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isAvailable
+                          ? Icons.check_circle_rounded
+                          : Icons.cancel_rounded,
+                      size: 16,
+                      color: textColor,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      room,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _RoomStatusLegend(
+              color: success,
+              label: 'Tersedia',
+              icon: Icons.check_circle_rounded,
+            ),
+            const SizedBox(width: 10),
+            _RoomStatusLegend(
+              color: danger,
+              label: 'Terisi',
+              icon: Icons.cancel_rounded,
+            ),
+          ],
+        ),
+        if (_selectedKamar != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Kamar terpilih: ${_selectedKamar!}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+        ],
+        if (_availableRooms.isEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: danger.withOpacity(0.08),
+              border: Border.all(color: danger.withOpacity(0.55)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: danger, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Semua kamar sudah terisi. Tidak ada kamar tersedia.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: danger,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1869,6 +1957,44 @@ class _DebugLegendChip extends StatelessWidget {
             height: 8,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoomStatusLegend extends StatelessWidget {
+  final Color color;
+  final String label;
+  final IconData icon;
+
+  const _RoomStatusLegend({
+    required this.color,
+    required this.label,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
           const SizedBox(width: 6),
           Text(
             label,
