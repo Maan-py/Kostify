@@ -255,13 +255,15 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
   Future<void> _editNomorKamar() async {
     final availableRooms = await _db.getAvailableRooms();
+    const allRooms = AppConstants.ROOM_LABELS;
     final currentRoom = (_tenant.nomorKamar ?? '').trim();
 
-    if (currentRoom.isNotEmpty && !availableRooms.contains(currentRoom)) {
-      availableRooms.insert(0, currentRoom);
-    }
+    final selectableRooms = {
+      ...availableRooms,
+      if (currentRoom.isNotEmpty) currentRoom,
+    };
 
-    if (availableRooms.isEmpty) {
+    if (selectableRooms.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tidak ada kamar yang tersedia.')),
@@ -273,6 +275,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     String selectedRoom =
         currentRoom.isNotEmpty ? currentRoom : availableRooms.first;
 
+    final primary = Color(AppColors.primaryColor.toInt);
+    final success = Color(AppColors.successColor.toInt);
+    final danger = Color(AppColors.dangerColor.toInt);
+
+    if (!mounted) return;
+
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -280,21 +288,101 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Edit Nomor Kamar'),
-          content: DropdownButtonFormField<String>(
-            value: selectedRoom,
-            items: availableRooms
-                .map((room) => DropdownMenuItem<String>(
-                      value: room,
-                      child: Text(room),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setDialogState(() => selectedRoom = value);
-            },
-            decoration: const InputDecoration(
-              labelText: 'Nomor Kamar',
-              hintText: 'Pilih kamar tersedia',
+          content: SizedBox(
+            width: 340,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Pilih kamar dari visual mapping (13 kamar).',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(AppColors.textSecondary.toInt),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: allRooms.map((room) {
+                      final isCurrent = room == currentRoom;
+                      final canSelect = selectableRooms.contains(room);
+                      final isSelected = selectedRoom == room;
+
+                        final bgColor = canSelect
+                            ? success.withOpacity(0.12)
+                            : danger.withOpacity(0.12);
+                        final borderColor = isSelected
+                          ? primary
+                            : (canSelect ? success : danger);
+                          final textColor = canSelect ? success : danger;
+
+                      return InkWell(
+                        onTap: canSelect
+                            ? () => setDialogState(() => selectedRoom = room)
+                            : null,
+                        borderRadius: BorderRadius.circular(12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 70,
+                          height: 68,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: borderColor,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      canSelect
+                                          ? Icons.check_circle_rounded
+                                          : Icons.block_rounded,
+                                      size: 16,
+                                      color: canSelect
+                                          ? success.withOpacity(0.9)
+                                          : danger.withOpacity(0.9),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      room,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isCurrent)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Icon(
+                                    Icons.bookmark_rounded,
+                                    size: 12,
+                                    color: primary.withOpacity(0.95),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [

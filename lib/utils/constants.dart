@@ -73,6 +73,24 @@ class AppConstants {
   static const int MAX_SARAN_LENGTH = 1000;
   static const int MAX_ROOM_NUMBER = 999;
 
+  // ─── Room Mapping (13 Kamar) ───────────────────────────────────────────────
+  // Visual mapping: 13 kamar aktif untuk pemilihan tenant baru.
+  static const List<String> ROOM_LABELS = [
+    'A1',
+    'A2',
+    'A3',
+    'A4',
+    'A5',
+    'B1',
+    'B2',
+    'B3',
+    'B4',
+    'B5',
+    'C1',
+    'C2',
+    'C3',
+  ];
+
   // ─── HTTP Timeout ────────────────────────────────────────────────────────────
   static const int HTTP_TIMEOUT_SECONDS = 10;
 

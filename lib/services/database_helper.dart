@@ -471,15 +471,8 @@ class DatabaseHelper {
         }
       }
 
-      // Generate all possible room numbers (total 15 kamar)
-      // Format: A1-A5, B1-B5, C1-C5
-      final allRooms = <String>[];
-      const roomPrefixes = ['A', 'B', 'C'];
-      for (final prefix in roomPrefixes) {
-        for (int i = 1; i <= 5; i++) {
-          allRooms.add('$prefix$i');
-        }
-      }
+      // Generate room numbers from centralized visual room mapping (13 kamar)
+      final allRooms = AppConstants.ROOM_LABELS;
 
       // Filter available rooms (not occupied)
       final availableRooms =
@@ -617,8 +610,10 @@ class DatabaseHelper {
       return {
         'total_tenant': totalTenant,
         'tenant_aktif': tenantAktif,
-        'tenant_nonaktif': (15 - tenantAktif).clamp(0, 15),
-        'total_kamar': 15, // ← hardcode 15 kamar
+        'tenant_nonaktif':
+          (AppConstants.ROOM_LABELS.length - tenantAktif)
+            .clamp(0, AppConstants.ROOM_LABELS.length),
+        'total_kamar': AppConstants.ROOM_LABELS.length,
         'pendapatan_bulan_ini': pendapatanBulanIni,
         'tagihan_pending': tagihantPending,
         'bulan': bulanIni,
