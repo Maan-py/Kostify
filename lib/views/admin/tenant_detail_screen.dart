@@ -35,12 +35,10 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     _tenant = Get.arguments as UserModel;
     _refreshTenant();
     _loadPayments();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncMidtransPayments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncMidtransPayments();
+    });
   }
 
   Future<void> _syncMidtransPayments() async {
@@ -65,13 +63,14 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Future<void> _loadPayments() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final payments = await _db.getPaymentsByUser(_tenant.id!);
-    if (mounted)
-      setState(() {
-        _payments = payments;
-        _isLoading = false;
-      });
+    if (!mounted) return;
+    setState(() {
+      _payments = payments;
+      _isLoading = false;
+    });
   }
 
   Future<void> _refreshTenant() async {
@@ -122,9 +121,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   Future<void> _addPayment() async {
     final now = DateTime.now();
     DateTime selectedBillingDate = DateTime(now.year, now.month, 1);
-    final bulanCtrl = TextEditingController(
-      text: '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}',
-    );
+    String selectedBulan =
+        '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
     final amountCtrl = TextEditingController(
       text: _tenant.hargaSewa?.toString() ?? '',
     );
@@ -133,7 +131,6 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       final result = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
-          // ← gunakan StatefulBuilder
           builder: (ctx, setDialogState) => AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -141,10 +138,10 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: bulanCtrl,
-                  readOnly: true,
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
                   onTap: () async {
+                    FocusManager.instance.primaryFocus?.unfocus();
                     final picked = await showDatePicker(
                       context: ctx,
                       initialDate: selectedBillingDate,
@@ -152,17 +149,25 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                       lastDate: DateTime(2100),
                     );
                     if (picked == null) return;
-                    setDialogState(() {
-                      selectedBillingDate = DateTime(picked.year, picked.month, 1);
-                      bulanCtrl.text =
-                          '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
-                    });
+                    selectedBillingDate = DateTime(picked.year, picked.month, 1);
+                    selectedBulan =
+                        '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
+                    if (!ctx.mounted) return;
+                    setDialogState(() {});
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Tanggal Tagihan *',
-                    hintText: 'Pilih dengan kalender',
-                    prefixIcon: Icon(Icons.calendar_month_rounded),
-                    counterText: '',
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Tanggal Tagihan *',
+                      hintText: 'Pilih dengan kalender',
+                      prefixIcon: Icon(Icons.calendar_month_rounded),
+                    ),
+                    child: Text(
+                      selectedBulan,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -198,7 +203,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
       if (result != true) return;
 
-      final bulan = bulanCtrl.text.trim();
+      final bulan = selectedBulan.trim();
       final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
 
       if (bulan.isEmpty || amount <= 0) {
@@ -233,7 +238,6 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       ));
       _loadPayments();
     } finally {
-      bulanCtrl.dispose(); // ← dispose di finally, dijamin setelah dialog tutup
       amountCtrl.dispose();
     }
   }
