@@ -200,7 +200,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       await _setDebugImage(guidedBytes);
 
       // Tulis ke file temp untuk ML Kit
-  final tempPath = '${capturedPath}_compressed.jpg';
+      final tempPath = '${capturedPath}_compressed.jpg';
       final tempFile = File(tempPath);
       await tempFile.writeAsBytes(guidedBytes);
 
@@ -286,8 +286,12 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       cropWidth = math.min(cropWidth, source.width);
       cropHeight = math.min(cropHeight, source.height);
 
-      final x = ((source.width - cropWidth) / 2).round().clamp(0, source.width - cropWidth);
-      final y = ((source.height - cropHeight) / 2).round().clamp(0, source.height - cropHeight);
+      final x = ((source.width - cropWidth) / 2)
+          .round()
+          .clamp(0, source.width - cropWidth);
+      final y = ((source.height - cropHeight) / 2)
+          .round()
+          .clamp(0, source.height - cropHeight);
 
       final cropped = img.copyCrop(
         source,
@@ -353,8 +357,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     Rect? kelDesaLabelRect;
     Rect? kecamatanLabelRect;
     final maxRight = ocrLines
-      .map((line) => line.rect.right)
-      .fold<double>(0, (prev, cur) => cur > prev ? cur : prev);
+        .map((line) => line.rect.right)
+        .fold<double>(0, (prev, cur) => cur > prev ? cur : prev);
 
     for (final line in ocrLines) {
       final normalized = _normalizeFieldText(line.text);
@@ -382,8 +386,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     if (nik.isEmpty) {
       nik = _extractNikFromRawText(recognized.text);
     }
-    final nama = _extractSingleValueByAlignment(ocrLines, namaLabelRect,
-        isName: true);
+    final nama =
+        _extractSingleValueByAlignment(ocrLines, namaLabelRect, isName: true);
     final alamat = _extractAlamatComposite(
       lines: ocrLines,
       alamatLabelRect: alamatLabelRect,
@@ -461,7 +465,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     }
 
     final nikRect = _findNikValueRectNearLabel(ocrLines, nikLabelRect, nik) ??
-      _findNikValueRect(ocrLines, nik);
+        _findNikValueRect(ocrLines, nik);
     if (nikRect != null) {
       debugBoxes.add(
         _KtpDebugBox(
@@ -577,7 +581,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   Rect? _findValueRectByText(List<_KtpOcrLine> lines, String value) {
     if (value.trim().isEmpty) return null;
-    final normalizedTarget = value.toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+    final normalizedTarget =
+        value.toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
     for (final line in lines) {
       final normalizedLine =
           line.text.toUpperCase().replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -600,8 +605,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     final top =
         (alamatLabelRect.bottom - 4).clamp(0, double.infinity).toDouble();
     final right = (maxRight + 8).clamp(left + 1, double.infinity).toDouble();
-        final bottom = (kecamatanLabelRect?.bottom ??
-          (alamatLabelRect.bottom + 180).clamp(top + 1, double.infinity))
+    final bottom = (kecamatanLabelRect?.bottom ??
+            (alamatLabelRect.bottom + 180).clamp(top + 1, double.infinity))
         .toDouble();
     if (bottom <= top || right <= left) return null;
     return Rect.fromLTRB(left, top, right, bottom);
@@ -617,27 +622,29 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }
 
   bool _isNikLabel(String text) => text.contains('NIK');
-  bool _isNamaLabel(String text) => text.contains('NAMA') || text.contains('NAME');
-  bool _isAlamatLabel(String text) => text.contains('ALAMAT') || text.contains('LAMAT');
-    bool _isRtRwLabel(String text) =>
+  bool _isNamaLabel(String text) =>
+      text.contains('NAMA') || text.contains('NAME');
+  bool _isAlamatLabel(String text) =>
+      text.contains('ALAMAT') || text.contains('LAMAT');
+  bool _isRtRwLabel(String text) =>
       text.contains('RTRW') ||
       (text.contains('RT') && text.contains('RW')) ||
       text.contains('RTR');
-    bool _isKelDesaLabel(String text) =>
+  bool _isKelDesaLabel(String text) =>
       text.contains('KELDESA') ||
       text.contains('KELURAHAN') ||
       text.contains('DESA') ||
       text.contains('KEL');
-    bool _isKecamatanLabel(String text) => text.contains('KECAMATAN');
+  bool _isKecamatanLabel(String text) => text.contains('KECAMATAN');
 
   bool _looksLikeFieldLabel(String text) {
     final normalized = _normalizeFieldText(text);
     return _isNikLabel(normalized) ||
         _isNamaLabel(normalized) ||
         _isAlamatLabel(normalized) ||
-      _isRtRwLabel(normalized) ||
-      _isKelDesaLabel(normalized) ||
-      _isKecamatanLabel(normalized) ||
+        _isRtRwLabel(normalized) ||
+        _isKelDesaLabel(normalized) ||
+        _isKecamatanLabel(normalized) ||
         normalized.contains('KECAMATAN') ||
         normalized.contains('KELURAHAN') ||
         normalized.contains('STATUS') ||
@@ -691,12 +698,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   String _extractNikFromRawText(String rawText) {
     final upper = rawText.toUpperCase();
-    final normalized = upper
-        .replaceAll(RegExp(r'[Oo]'), '0')
-        .replaceAll(RegExp(r'[Il]'), '1');
+    final normalized =
+        upper.replaceAll(RegExp(r'[Oo]'), '0').replaceAll(RegExp(r'[Il]'), '1');
 
-    final aroundNik = RegExp(r'NIK[^\n\r]{0,40}(\d[\d\s\-:]{14,}\d)')
-        .firstMatch(normalized);
+    final aroundNik =
+        RegExp(r'NIK[^\n\r]{0,40}(\d[\d\s\-:]{14,}\d)').firstMatch(normalized);
     if (aroundNik != null) {
       final candidate = _normalizeNikValue(aroundNik.group(1) ?? '');
       if (candidate.isNotEmpty) return candidate;
@@ -712,16 +718,17 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }
 
   String _normalizeNikValue(String value) {
-  final cleaned = value
-      .replaceAll(RegExp(r'[OoDd]'), '0')
-      .replaceAll(RegExp(r'[Il|]'), '1')
-      .replaceAll(RegExp(r'[bB]'), '6')
-      .replaceAll(RegExp(r'[sS]'), '5')
-      .replaceAll(RegExp(r'\D'), ''); // Hapus semua yang bukan angka setelah konversi
-  
-  if (cleaned.length < 16) return '';
-  return cleaned.substring(0, 16);
-}
+    final cleaned = value
+        .replaceAll(RegExp(r'[OoDd]'), '0')
+        .replaceAll(RegExp(r'[Il|]'), '1')
+        .replaceAll(RegExp(r'[bB]'), '6')
+        .replaceAll(RegExp(r'[sS]'), '5')
+        .replaceAll(
+            RegExp(r'\D'), ''); // Hapus semua yang bukan angka setelah konversi
+
+    if (cleaned.length < 16) return '';
+    return cleaned.substring(0, 16);
+  }
 
   bool _isValidOcrName(String value) {
     final trimmed = value.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -796,7 +803,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }) {
     String cleanAddressPart(String input) {
       return input
-          .replaceAll(RegExp(r'^(ALAMAT|RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\s*[:\-]?\s*', caseSensitive: false), '')
+          .replaceAll(
+              RegExp(
+                  r'^(ALAMAT|RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\s*[:\-]?\s*',
+                  caseSensitive: false),
+              '')
           .replaceAll(RegExp(r'\s{2,}'), ' ')
           .trim();
     }
@@ -815,10 +826,22 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     final rawMap = _extractAlamatComponentsFromRawText(rawText);
 
     final merged = <String>[
-      if (alamatMain.isNotEmpty) alamatMain else if ((rawMap['alamat'] ?? '').isNotEmpty) rawMap['alamat']!,
-      if (rtRw.isNotEmpty) rtRw else if ((rawMap['rtrw'] ?? '').isNotEmpty) rawMap['rtrw']!,
-      if (kelDesa.isNotEmpty) kelDesa else if ((rawMap['keldesa'] ?? '').isNotEmpty) rawMap['keldesa']!,
-      if (kecamatan.isNotEmpty) kecamatan else if ((rawMap['kecamatan'] ?? '').isNotEmpty) rawMap['kecamatan']!,
+      if (alamatMain.isNotEmpty)
+        alamatMain
+      else if ((rawMap['alamat'] ?? '').isNotEmpty)
+        rawMap['alamat']!,
+      if (rtRw.isNotEmpty)
+        rtRw
+      else if ((rawMap['rtrw'] ?? '').isNotEmpty)
+        rawMap['rtrw']!,
+      if (kelDesa.isNotEmpty)
+        kelDesa
+      else if ((rawMap['keldesa'] ?? '').isNotEmpty)
+        rawMap['keldesa']!,
+      if (kecamatan.isNotEmpty)
+        kecamatan
+      else if ((rawMap['kecamatan'] ?? '').isNotEmpty)
+        rawMap['kecamatan']!,
     ];
 
     return _mergeAddressParts(merged);
@@ -833,7 +856,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
     String grabAfterLabel(String line, String pattern) {
       return line
-          .replaceAll(RegExp('$pattern\\s*[:\\-]?\\s*', caseSensitive: false), '')
+          .replaceAll(
+              RegExp('$pattern\\s*[:\\-]?\\s*', caseSensitive: false), '')
           .trim();
     }
 
@@ -857,7 +881,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       if (alamat.isEmpty && upper.contains('ALAMAT')) {
         alamat = pickNextIfNeeded(i, grabAfterLabel(line, r'ALAMAT'));
       }
-      if (rtrw.isEmpty && (upper.contains('RT/RW') || (upper.contains('RT') && upper.contains('RW')))) {
+      if (rtrw.isEmpty &&
+          (upper.contains('RT/RW') ||
+              (upper.contains('RT') && upper.contains('RW')))) {
         rtrw = pickNextIfNeeded(i, grabAfterLabel(line, r'RT\s*\/?\s*RW'));
       }
       if (keldesa.isEmpty &&
@@ -865,9 +891,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               upper.contains('KELURAHAN') ||
               upper.contains('DESA'))) {
         keldesa = pickNextIfNeeded(
-            i,
-            grabAfterLabel(
-                line, r'KEL\s*\/?\s*DESA|KELURAHAN|DESA'));
+            i, grabAfterLabel(line, r'KEL\s*\/?\s*DESA|KELURAHAN|DESA'));
       }
       if (kecamatan.isEmpty && upper.contains('KECAMATAN')) {
         kecamatan = pickNextIfNeeded(i, grabAfterLabel(line, r'KECAMATAN'));
@@ -885,9 +909,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   String _mergeAddressParts(List<String> parts) {
     final unique = <String>[];
     for (final part in parts) {
-      final cleaned = part
-          .replaceAll(RegExp(r'\s{2,}'), ' ')
-          .trim();
+      final cleaned = part.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
       if (cleaned.isEmpty) continue;
       if (!unique.any((p) => p.toUpperCase() == cleaned.toUpperCase())) {
         unique.add(cleaned);
@@ -1432,7 +1454,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
             LengthLimitingTextInputFormatter(15),
           ],
-          validator: (v) => v?.trim().isEmpty ?? true ? 'Nomor telepon wajib diisi' : null,
+          validator: (v) =>
+              v?.trim().isEmpty ?? true ? 'Nomor telepon wajib diisi' : null,
         ),
       ],
     );
@@ -1480,10 +1503,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           children: allRooms.map((room) {
             final isAvailable = _availableRooms.contains(room);
             final isSelected = _selectedKamar == room;
-            final bgColor = isAvailable ? success.withOpacity(0.12) : danger.withOpacity(0.12);
-            final borderColor = isSelected
-              ? primary
-              : (isAvailable ? success : danger);
+            final bgColor = isAvailable
+                ? success.withOpacity(0.12)
+                : danger.withOpacity(0.12);
+            final borderColor =
+                isSelected ? primary : (isAvailable ? success : danger);
             final textColor = isAvailable ? success : danger;
 
             return InkWell(
@@ -1501,7 +1525,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+                  border:
+                      Border.all(color: borderColor, width: isSelected ? 2 : 1),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1566,8 +1591,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
-                    color: danger, size: 20),
+                Icon(Icons.warning_amber_rounded, color: danger, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -2018,7 +2042,9 @@ class _OCRDebugOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (sourceSize == null || sourceSize!.width == 0 || sourceSize!.height == 0) {
+    if (sourceSize == null ||
+        sourceSize!.width == 0 ||
+        sourceSize!.height == 0) {
       return;
     }
 

@@ -1,5 +1,7 @@
 // lib/views/admin/tenant_detail_screen.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -31,13 +33,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   void initState() {
     super.initState();
     _tenant = Get.arguments as UserModel;
+    _refreshTenant();
     _loadPayments();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncMidtransPayments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncMidtransPayments();
+    });
   }
 
   Future<void> _syncMidtransPayments() async {
@@ -45,7 +46,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     bool hasUpdate = false;
     for (var payment in payments) {
       if (payment.status == PaymentStatus.pending && payment.orderId != null) {
-        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        final statusResult =
+            await _api.checkMidtransTransactionStatus(payment.orderId!);
         if (statusResult != null) {
           final statusMidtrans = statusResult['transaction_status'];
           if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
@@ -61,13 +63,14 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   }
 
   Future<void> _loadPayments() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final payments = await _db.getPaymentsByUser(_tenant.id!);
-    if (mounted)
-      setState(() {
-        _payments = payments;
-        _isLoading = false;
-      });
+    if (!mounted) return;
+    setState(() {
+      _payments = payments;
+      _isLoading = false;
+    });
   }
 
   Future<void> _refreshTenant() async {
@@ -117,9 +120,9 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
   Future<void> _addPayment() async {
     final now = DateTime.now();
-    final bulanCtrl = TextEditingController(
-      text: '${now.year}-${now.month.toString().padLeft(2, '0')}',
-    );
+    DateTime selectedBillingDate = DateTime(now.year, now.month, 1);
+    String selectedBulan =
+        '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
     final amountCtrl = TextEditingController(
       text: _tenant.hargaSewa?.toString() ?? '',
     );
@@ -128,7 +131,6 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       final result = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
-          // ← gunakan StatefulBuilder
           builder: (ctx, setDialogState) => AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -136,15 +138,37 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: bulanCtrl,
-                  maxLength: 7,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
-                    LengthLimitingTextInputFormatter(7),
-                  ],
-                  decoration: const InputDecoration(
-                      labelText: 'Bulan (yyyy-MM)', counterText: ''),
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () async {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: selectedBillingDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked == null) return;
+                    selectedBillingDate = DateTime(picked.year, picked.month, 1);
+                    selectedBulan =
+                        '${selectedBillingDate.year}-${selectedBillingDate.month.toString().padLeft(2, '0')}';
+                    if (!ctx.mounted) return;
+                    setDialogState(() {});
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Tanggal Tagihan *',
+                      hintText: 'Pilih dengan kalender',
+                      prefixIcon: Icon(Icons.calendar_month_rounded),
+                    ),
+                    child: Text(
+                      selectedBulan,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -179,7 +203,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 
       if (result != true) return;
 
-      final bulan = bulanCtrl.text.trim();
+      final bulan = selectedBulan.trim();
       final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
 
       if (bulan.isEmpty || amount <= 0) {
@@ -214,7 +238,6 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       ));
       _loadPayments();
     } finally {
-      bulanCtrl.dispose(); // ← dispose di finally, dijamin setelah dialog tutup
       amountCtrl.dispose();
     }
   }
@@ -311,13 +334,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                       final canSelect = selectableRooms.contains(room);
                       final isSelected = selectedRoom == room;
 
-                        final bgColor = canSelect
-                            ? success.withOpacity(0.12)
-                            : danger.withOpacity(0.12);
-                        final borderColor = isSelected
-                          ? primary
-                            : (canSelect ? success : danger);
-                          final textColor = canSelect ? success : danger;
+                      final bgColor = canSelect
+                          ? success.withOpacity(0.12)
+                          : danger.withOpacity(0.12);
+                      final borderColor =
+                          isSelected ? primary : (canSelect ? success : danger);
+                      final textColor = canSelect ? success : danger;
 
                       return InkWell(
                         onTap: canSelect
@@ -618,16 +640,25 @@ class _InfoCard extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: const Color(0xFF8095E4).withOpacity(0.12),
-                child: Text(
-                  (tenant.namaLengkap?.isNotEmpty == true
-                          ? tenant.namaLengkap![0]
-                          : tenant.username[0])
-                      .toUpperCase(),
-                  style: const TextStyle(
-                      fontSize: 22,
-                      color: Color(0xFF8095E4),
-                      fontWeight: FontWeight.w700),
-                ),
+                backgroundImage: tenant.fotoProfilPath != null &&
+                        tenant.fotoProfilPath!.trim().isNotEmpty &&
+                        File(tenant.fotoProfilPath!).existsSync()
+                    ? FileImage(File(tenant.fotoProfilPath!))
+                    : null,
+                child: (tenant.fotoProfilPath == null ||
+                        tenant.fotoProfilPath!.trim().isEmpty ||
+                        !File(tenant.fotoProfilPath!).existsSync())
+                    ? Text(
+                        (tenant.namaLengkap?.isNotEmpty == true
+                                ? tenant.namaLengkap![0]
+                                : tenant.username[0])
+                            .toUpperCase(),
+                        style: const TextStyle(
+                            fontSize: 22,
+                            color: Color(0xFF8095E4),
+                            fontWeight: FontWeight.w700),
+                      )
+                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(
