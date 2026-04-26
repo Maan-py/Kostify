@@ -3,6 +3,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:crypto/crypto.dart';
+import 'package:bcrypt/bcrypt.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
 import '../models/broadcast_model.dart';
@@ -97,7 +99,7 @@ class DatabaseHelper {
     // Tabel Broadcasts
     await _ensureBroadcastTables(db);
 
-    // Insert akun Admin (hardcoded, SHA-256 hashed)
+    // Insert akun Admin bootstrap; password disimpan sebagai bcrypt hash.
     await _insertDefaultAdmin(db);
   }
 
@@ -190,7 +192,12 @@ class DatabaseHelper {
   }
 
   Future<void> _insertDefaultAdmin(Database db) async {
-    final passwordHash = sha256.convert(utf8.encode('admin123')).toString();
+    final bootstrapPassword = dotenv.env['ADMIN_BOOTSTRAP_PASSWORD']?.trim();
+    final passwordToUse =
+        (bootstrapPassword == null || bootstrapPassword.isEmpty)
+            ? 'admin123'
+            : bootstrapPassword;
+    final passwordHash = DatabaseHelper.hashPassword(passwordToUse);
 
     await db.insert('users', {
       'username': AppConstants.ADMIN_USERNAME,
@@ -204,8 +211,37 @@ class DatabaseHelper {
 
   // ─── Helper hash ───────────────────────────────────────────────────────────
 
+  static bool _isBcryptHash(String hash) {
+    return hash.startsWith(r'$2a$') ||
+        hash.startsWith(r'$2b$') ||
+        hash.startsWith(r'$2y$');
+  }
+
   static String hashPassword(String password) {
-    return sha256.convert(utf8.encode(password)).toString();
+    return BCrypt.hashpw(password, BCrypt.gensalt());
+  }
+
+  static bool verifyPassword(String password, String storedHash) {
+    if (_isBcryptHash(storedHash)) {
+      return BCrypt.checkpw(password, storedHash);
+    }
+
+    final legacyHash = sha256.convert(utf8.encode(password)).toString();
+    return legacyHash == storedHash;
+  }
+
+  static bool needsRehash(String storedHash) {
+    return !_isBcryptHash(storedHash);
+  }
+
+  Future<void> _upgradeLegacyPasswordHash(int userId, String password) async {
+    final db = await database;
+    await db.update(
+      'users',
+      {'password': DatabaseHelper.hashPassword(password)},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
   }
 
   // ─── USER CRUD ─────────────────────────────────────────────────────────────
@@ -214,16 +250,21 @@ class DatabaseHelper {
       String username, String password) async {
     try {
       final db = await database;
-      final hash = DatabaseHelper.hashPassword(password);
       final maps = await db.query(
         'users',
-        where: 'username = ? AND password = ?',
-        whereArgs: [username.trim(), hash],
+        where: 'username = ?',
+        whereArgs: [username.trim()],
         limit: 1,
       );
       if (maps.isEmpty) return null;
       final user = UserModel.fromMap(maps.first);
       if (!user.isActive) return null; // Akun nonaktif tidak bisa login
+      if (!DatabaseHelper.verifyPassword(password, user.password)) {
+        return null;
+      }
+      if (user.id != null && DatabaseHelper.needsRehash(user.password)) {
+        await _upgradeLegacyPasswordHash(user.id!, password);
+      }
       return user;
     } catch (e) {
       return null;
@@ -605,11 +646,11 @@ class DatabaseHelper {
       limit: 1,
     );
 
-  if (result.isNotEmpty) {
-    return PaymentModel.fromMap(result.first);
+    if (result.isNotEmpty) {
+      return PaymentModel.fromMap(result.first);
+    }
+    return null; // Balikin null kalau emang belum ada tagihan sama sekali
   }
-  return null; // Balikin null kalau emang belum ada tagihan sama sekali
-}
 
   // ─── EMERGENCY LOG CRUD ────────────────────────────────────────────────────
 

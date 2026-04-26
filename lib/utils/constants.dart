@@ -10,11 +10,7 @@ class AppConstants {
   static const String PACKAGE_NAME = 'id.kostify.app';
 
   // ─── Admin Hardcoded ────────────────────────────────────────────────────────
-  // Password admin di-hash SHA-256: 'admin123' -> hash di bawah
-  // Ganti nilai ADMIN_PASSWORD_HASH dengan hash dari password yang diinginkan
   static const String ADMIN_USERNAME = 'admin';
-  static const String ADMIN_PASSWORD_HASH =
-      'ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae'; // SHA-256 of 'admin123'
 
   // ─── API Keys (PLACEHOLDER — ganti dengan key asli) ─────────────────────────
   static String get GEMINI_API_KEY =>
