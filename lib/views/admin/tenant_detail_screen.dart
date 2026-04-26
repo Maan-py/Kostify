@@ -1,5 +1,7 @@
 // lib/views/admin/tenant_detail_screen.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -31,6 +33,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
   void initState() {
     super.initState();
     _tenant = Get.arguments as UserModel;
+    _refreshTenant();
     _loadPayments();
   }
 
@@ -618,16 +621,25 @@ class _InfoCard extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: const Color(0xFF8095E4).withOpacity(0.12),
-                child: Text(
-                  (tenant.namaLengkap?.isNotEmpty == true
-                          ? tenant.namaLengkap![0]
-                          : tenant.username[0])
+                backgroundImage: tenant.fotoProfilPath != null &&
+                    tenant.fotoProfilPath!.trim().isNotEmpty &&
+                    File(tenant.fotoProfilPath!).existsSync()
+                  ? FileImage(File(tenant.fotoProfilPath!))
+                  : null,
+                child: (tenant.fotoProfilPath == null ||
+                    tenant.fotoProfilPath!.trim().isEmpty ||
+                    !File(tenant.fotoProfilPath!).existsSync())
+                  ? Text(
+                    (tenant.namaLengkap?.isNotEmpty == true
+                        ? tenant.namaLengkap![0]
+                        : tenant.username[0])
                       .toUpperCase(),
-                  style: const TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       color: Color(0xFF8095E4),
                       fontWeight: FontWeight.w700),
-                ),
+                    )
+                  : null,
               ),
               const SizedBox(width: 14),
               Expanded(

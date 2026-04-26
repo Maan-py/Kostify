@@ -1,5 +1,7 @@
 // lib/views/admin/tenant_list_screen.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -467,16 +469,25 @@ class _TenantCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 22,
                     backgroundColor: const Color(0xFF8095E4).withOpacity(0.12),
-                    child: Text(
-                      (tenant.namaLengkap?.isNotEmpty == true
-                              ? tenant.namaLengkap![0]
-                              : tenant.username[0])
+                    backgroundImage: tenant.fotoProfilPath != null &&
+                        tenant.fotoProfilPath!.trim().isNotEmpty &&
+                        File(tenant.fotoProfilPath!).existsSync()
+                      ? FileImage(File(tenant.fotoProfilPath!))
+                      : null,
+                    child: (tenant.fotoProfilPath == null ||
+                        tenant.fotoProfilPath!.trim().isEmpty ||
+                        !File(tenant.fotoProfilPath!).existsSync())
+                      ? Text(
+                        (tenant.namaLengkap?.isNotEmpty == true
+                            ? tenant.namaLengkap![0]
+                            : tenant.username[0])
                           .toUpperCase(),
-                      style: const TextStyle(
+                        style: const TextStyle(
                           color: Color(0xFF8095E4),
                           fontWeight: FontWeight.w700,
                           fontSize: 18),
-                    ),
+                        )
+                      : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
