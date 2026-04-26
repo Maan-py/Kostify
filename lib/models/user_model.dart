@@ -3,16 +3,16 @@
 class UserModel {
   final int? id;
   final String username;
-  final String password; // SHA-256 hashed
-  final String role;     // 'admin' | 'tenant'
+  final String password; // bcrypt hash (legacy SHA-256 still supported on read)
+  final String role; // 'admin' | 'tenant'
   final bool isActive;
   final String? nik;
   final String? namaLengkap;
   final String? alamat;
   final String? nomorKamar;
-  final int? hargaSewa;       // dalam IDR
+  final int? hargaSewa; // dalam IDR
   final String? fotoProfilPath; // path lokal file
-  final String? tanggalMasuk;   // format: yyyy-MM-dd
+  final String? tanggalMasuk; // format: yyyy-MM-dd
   final String? telepon;
   final DateTime? createdAt;
 
@@ -51,7 +51,8 @@ class UserModel {
       'foto_profil_path': fotoProfilPath,
       'tanggal_masuk': tanggalMasuk,
       'telepon': telepon,
-      'created_at': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'created_at':
+          createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
