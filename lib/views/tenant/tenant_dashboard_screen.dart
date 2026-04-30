@@ -92,7 +92,8 @@ class _TenantHomeTab extends StatefulWidget {
   State<_TenantHomeTab> createState() => _TenantHomeTabState();
 }
 
-class _TenantHomeTabState extends State<_TenantHomeTab> with WidgetsBindingObserver {
+class _TenantHomeTabState extends State<_TenantHomeTab>
+    with WidgetsBindingObserver {
   final _auth = AuthController.to;
   final _sensor = SensorService();
   final _api = ApiService();
@@ -139,12 +140,13 @@ class _TenantHomeTabState extends State<_TenantHomeTab> with WidgetsBindingObser
   Future<void> _syncPendingPayments() async {
     final user = _auth.currentUser.value;
     if (user == null) return;
-    
+
     final payments = await _db.getPaymentsByUser(user.id!);
     bool hasUpdate = false;
     for (var payment in payments) {
       if (payment.status == PaymentStatus.pending && payment.orderId != null) {
-        final statusResult = await _api.checkMidtransTransactionStatus(payment.orderId!);
+        final statusResult =
+            await _api.checkMidtransTransactionStatus(payment.orderId!);
         if (statusResult != null) {
           final statusMidtrans = statusResult['transaction_status'];
           if (statusMidtrans == 'settlement' || statusMidtrans == 'capture') {
@@ -673,7 +675,8 @@ class _RoomCard extends StatelessWidget {
   }
 
   /// Fungsi untuk menangani proses pembayaran dengan Midtrans
-  Future<void> _handlePayment(BuildContext context, PaymentModel pendingPayment) async {
+  Future<void> _handlePayment(
+      BuildContext context, PaymentModel pendingPayment) async {
     if (user.id == null || pendingPayment.amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -767,15 +770,11 @@ class _RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deadline = _nextPaymentDeadline();
-final _tenantController = Get.put(TenantController());
+    final _tenantController = Get.put(TenantController());
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1BC0BA), Color(0xFF6B7FD7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF6B7FD7),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
