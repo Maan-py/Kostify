@@ -17,7 +17,8 @@ class ToolsScreen extends StatefulWidget {
   State<ToolsScreen> createState() => _ToolsScreenState();
 }
 
-class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStateMixin {
+class _ToolsScreenState extends State<ToolsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -37,7 +38,8 @@ class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Tools', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        title: const Text('Tools',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
         backgroundColor: Colors.white,
         elevation: 0,
         bottom: TabBar(
@@ -46,12 +48,17 @@ class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStat
           unselectedLabelColor: const Color(0xFF6B7280),
           indicatorColor: const Color(0xFF8095E4),
           indicatorWeight: 2,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          labelStyle:
+              const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           tabs: const [
-            Tab(icon: Icon(Icons.currency_exchange_rounded, size: 18), text: 'Kurs'),
+            Tab(
+                icon: Icon(Icons.currency_exchange_rounded, size: 18),
+                text: 'Kurs'),
             Tab(icon: Icon(Icons.access_time_rounded, size: 18), text: 'Waktu'),
             Tab(icon: Icon(Icons.smart_toy_rounded, size: 18), text: 'AI'),
-            Tab(icon: Icon(Icons.sports_esports_rounded, size: 18), text: 'Game'),
+            Tab(
+                icon: Icon(Icons.sports_esports_rounded, size: 18),
+                text: 'Game'),
           ],
         ),
       ),
@@ -98,7 +105,10 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
   }
 
   Future<void> _fetchRates() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     final result = await _api.getExchangeRates(_fromCurrency);
 
@@ -111,13 +121,17 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
         });
         _convert();
       } else {
-        setState(() { _error = result.error; _isLoading = false; });
+        setState(() {
+          _error = result.error;
+          _isLoading = false;
+        });
       }
     }
   }
 
   void _convert() {
-    final amountStr = _amountCtrl.text.trim().replaceAll('.', '').replaceAll(',', '');
+    final amountStr =
+        _amountCtrl.text.trim().replaceAll('.', '').replaceAll(',', '');
     final amount = double.tryParse(amountStr);
     if (amount == null || amount <= 0) {
       setState(() => _result = null);
@@ -176,7 +190,8 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Jumlah', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                const Text('Jumlah',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -190,7 +205,8 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
                           LengthLimitingTextInputFormatter(15),
                         ],
                         onChanged: (_) => _convert(),
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.w700),
                         decoration: const InputDecoration(
                           hintText: '0',
                           counterText: '',
@@ -202,7 +218,11 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
                     _CurrencyDropdown(
                       value: _fromCurrency,
                       currencies: _currencies,
-                      onChanged: (v) => setState(() { _fromCurrency = v!; _rates = {}; _result = null; }),
+                      onChanged: (v) => setState(() {
+                        _fromCurrency = v!;
+                        _rates = {};
+                        _result = null;
+                      }),
                     ),
                   ],
                 ),
@@ -221,7 +241,8 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
                   color: const Color(0xFF8095E4),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.swap_vert_rounded, color: Colors.white, size: 22),
+                child: const Icon(Icons.swap_vert_rounded,
+                    color: Colors.white, size: 22),
               ),
             ),
           ),
@@ -242,20 +263,29 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Hasil Konversi', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                      child: Text('Hasil Konversi',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF6B7280))),
                     ),
                     _CurrencyDropdown(
                       value: _toCurrency,
                       currencies: _currencies,
-                      onChanged: (v) => setState(() { _toCurrency = v!; _result = null; }),
+                      onChanged: (v) => setState(() {
+                        _toCurrency = v!;
+                        _result = null;
+                      }),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 if (_isLoading)
-                  const Center(child: CircularProgressIndicator(color: Color(0xFF8095E4)))
+                  const Center(
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF8095E4)))
                 else if (_error != null)
-                  Text(_error!, style: TextStyle(color: Colors.orange.shade700, fontSize: 12))
+                  Text(_error!,
+                      style: TextStyle(
+                          color: Colors.orange.shade700, fontSize: 12))
                 else
                   Text(
                     _result != null
@@ -284,7 +314,8 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
                 backgroundColor: const Color(0xFF8095E4),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -301,7 +332,8 @@ class _CurrencyConverterTabState extends State<_CurrencyConverterTab> {
           const SizedBox(height: 20),
 
           // Daftar kurs semua mata uang
-          if (_rates.isNotEmpty) _RatesTable(rates: _rates, baseCurrency: _fromCurrency),
+          if (_rates.isNotEmpty)
+            _RatesTable(rates: _rates, baseCurrency: _fromCurrency),
         ],
       ),
     );
@@ -312,7 +344,8 @@ class _CurrencyDropdown extends StatelessWidget {
   final String value;
   final List<Map<String, String>> currencies;
   final ValueChanged<String?> onChanged;
-  const _CurrencyDropdown({required this.value, required this.currencies, required this.onChanged});
+  const _CurrencyDropdown(
+      {required this.value, required this.currencies, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -320,10 +353,14 @@ class _CurrencyDropdown extends StatelessWidget {
       value: value,
       underline: const SizedBox(),
       borderRadius: BorderRadius.circular(12),
-      items: currencies.map((c) => DropdownMenuItem(
-        value: c['code'],
-        child: Text('${c['code']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      )).toList(),
+      items: currencies
+          .map((c) => DropdownMenuItem(
+                value: c['code'],
+                child: Text('${c['code']}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+              ))
+          .toList(),
       onChanged: onChanged,
     );
   }
@@ -336,7 +373,8 @@ class _RatesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final supportedCodes = AppConstants.SUPPORTED_CURRENCIES.map((c) => c['code']!).toList();
+    final supportedCodes =
+        AppConstants.SUPPORTED_CURRENCIES.map((c) => c['code']!).toList();
     final displayRates = rates.entries
         .where((e) => supportedCodes.contains(e.key) && e.key != baseCurrency)
         .toList();
@@ -355,20 +393,23 @@ class _RatesTable extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
           const SizedBox(height: 10),
           ...displayRates.map((e) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                Text(e.key, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const Spacer(),
-                Text(
-                  e.value >= 1000
-                      ? NumberFormat('#,##0.##', 'en_US').format(e.value)
-                      : e.value.toStringAsFixed(4),
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A2E)),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Text(e.key,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    const Spacer(),
+                    Text(
+                      e.value >= 1000
+                          ? NumberFormat('#,##0.##', 'en_US').format(e.value)
+                          : e.value.toStringAsFixed(4),
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF1A1A2E)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -393,11 +434,16 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
   // Offset dalam jam relatif ke UTC
   int _getOffset(String tzId) {
     switch (tzId) {
-      case 'WIB': return 7;
-      case 'WITA': return 8;
-      case 'WIT': return 9;
-      case 'London': return _isLondonBST() ? 1 : 0;
-      default: return 7;
+      case 'WIB':
+        return 7;
+      case 'WITA':
+        return 8;
+      case 'WIT':
+        return 9;
+      case 'London':
+        return _isLondonBST() ? 1 : 0;
+      default:
+        return 7;
     }
   }
 
@@ -428,8 +474,11 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
     if (picked != null) {
       setState(() {
         _selectedTime = DateTime(
-          _selectedTime.year, _selectedTime.month, _selectedTime.day,
-          picked.hour, picked.minute,
+          _selectedTime.year,
+          _selectedTime.month,
+          _selectedTime.day,
+          picked.hour,
+          picked.minute,
         );
       });
     }
@@ -450,28 +499,35 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF8095E4), Color(0xFF6B7FD7)],
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               children: [
-                const Text('Waktu Referensi', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text('Waktu Referensi',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 8),
                 GestureDetector(
                   onTap: _pickTime,
                   child: Text(
                     fmt.format(_selectedTime),
-                    style: const TextStyle(color: Colors.white, fontSize: 52,
-                        fontWeight: FontWeight.w800, letterSpacing: -1),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 52,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1),
                   ),
                 ),
                 Text(fmtDate.format(_selectedTime),
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 12),
                 // Pilih zona asal
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -480,20 +536,28 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
                     value: _fromTZ,
                     dropdownColor: const Color(0xFF8095E4),
                     underline: const SizedBox(),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-                    icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.white),
-                    items: _timezones.map((tz) => DropdownMenuItem(
-                      value: tz['id'],
-                      child: Text(tz['id']!),
-                    )).toList(),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13),
+                    icon: const Icon(Icons.arrow_drop_down_rounded,
+                        color: Colors.white),
+                    items: _timezones
+                        .map((tz) => DropdownMenuItem(
+                              value: tz['id'],
+                              child: Text(tz['id']!),
+                            ))
+                        .toList(),
                     onChanged: (v) => setState(() => _fromTZ = v!),
                   ),
                 ),
                 const SizedBox(height: 4),
                 TextButton.icon(
                   onPressed: _pickTime,
-                  icon: const Icon(Icons.edit_rounded, size: 14, color: Colors.white70),
-                  label: const Text('Ubah Waktu', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                  icon: const Icon(Icons.edit_rounded,
+                      size: 14, color: Colors.white70),
+                  label: const Text('Ubah Waktu',
+                      style: TextStyle(color: Colors.white70, fontSize: 11)),
                 ),
               ],
             ),
@@ -504,13 +568,14 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
           const Align(
             alignment: Alignment.centerLeft,
             child: Text('Konversi ke semua zona waktu',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Color(0xFF1A1A2E))),
           ),
           const SizedBox(height: 10),
 
-          ..._timezones
-              .where((tz) => tz['id'] != _fromTZ)
-              .map((tz) {
+          ..._timezones.where((tz) => tz['id'] != _fromTZ).map((tz) {
             final converted = _convertTime(tz['id']!);
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -526,10 +591,13 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(tz['id']!,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
                               color: Color(0xFF1A1A2E))),
                       Text(tz['name']!,
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0xFF6B7280))),
                     ],
                   ),
                   const Spacer(),
@@ -538,12 +606,15 @@ class _TimeConverterTabState extends State<_TimeConverterTab> {
                     children: [
                       Text(
                         fmt.format(converted),
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700,
+                        style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
                             color: Color(0xFF8095E4)),
                       ),
                       Text(
                         'UTC${tz['offset']!.startsWith('+') || tz['offset']!.startsWith('-') ? '' : '+'}${tz['offset']}',
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xFF6B7280)),
                       ),
                     ],
                   ),
@@ -586,7 +657,8 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
   void initState() {
     super.initState();
     _messages.add(_SimpleChatMessage(
-      text: 'Halo! Saya KosBot 🏠\nAda yang bisa saya bantu seputar kos atau hal lainnya?',
+      text:
+          'Halo! Saya KosBot 🏠\nAda yang bisa saya bantu seputar kos atau hal lainnya?',
       isUser: false,
     ));
   }
@@ -600,7 +672,9 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
 
   Future<void> _send() async {
     final text = _msgCtrl.text.trim();
-    if (text.isEmpty || text.length > AppConstants.MAX_CHAT_LENGTH || _isLoading) return;
+    if (text.isEmpty ||
+        text.length > AppConstants.MAX_CHAT_LENGTH ||
+        _isLoading) return;
     _msgCtrl.clear();
     FocusScope.of(context).unfocus();
 
@@ -611,15 +685,26 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
     _scroll();
 
     _history.add({'role': 'user', 'content': text});
-    final result = await _api.sendToGemini(text, chatHistory: _history.length > 2 ? _history.sublist(0, _history.length - 1) : null, systemContext: _systemCtx);
+    final result = await _api.sendToGemini(text,
+        chatHistory: _history.length > 2
+            ? _history.sublist(0, _history.length - 1)
+            : null,
+        systemContext: _systemCtx);
 
     if (!mounted) return;
     if (result.success) {
       _history.add({'role': 'assistant', 'content': result.text!});
-      setState(() { _messages.add(_SimpleChatMessage(text: result.text!, isUser: false)); _isLoading = false; });
+      setState(() {
+        _messages.add(_SimpleChatMessage(text: result.text!, isUser: false));
+        _isLoading = false;
+      });
     } else {
       _history.removeLast();
-      setState(() { _messages.add(_SimpleChatMessage(text: '⚠️ ${result.error}', isUser: false, isError: true)); _isLoading = false; });
+      setState(() {
+        _messages.add(_SimpleChatMessage(
+            text: '⚠️ ${result.error}', isUser: false, isError: true));
+        _isLoading = false;
+      });
     }
     _scroll();
   }
@@ -650,7 +735,9 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
                     SizedBox(width: 12),
                     SizedBox(
                       width: 40,
-                      child: Text('...', style: TextStyle(fontSize: 20, color: Color(0xFF8095E4))),
+                      child: Text('...',
+                          style: TextStyle(
+                              fontSize: 20, color: Color(0xFF8095E4))),
                     ),
                   ]),
                 );
@@ -659,25 +746,35 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
-                  mainAxisAlignment: msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  mainAxisAlignment: msg.isUser
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
                   children: [
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: msg.isUser ? const Color(0xFF8095E4) : Colors.white,
+                          color: msg.isUser
+                              ? const Color(0xFF8095E4)
+                              : Colors.white,
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(16),
                             topRight: const Radius.circular(16),
                             bottomLeft: Radius.circular(msg.isUser ? 16 : 4),
                             bottomRight: Radius.circular(msg.isUser ? 4 : 16),
                           ),
-                          border: msg.isUser ? null : Border.all(color: const Color(0xFFE5E7EB)),
+                          border: msg.isUser
+                              ? null
+                              : Border.all(color: const Color(0xFFE5E7EB)),
                         ),
                         child: Text(msg.text,
                             style: TextStyle(
-                              color: msg.isUser ? Colors.white : const Color(0xFF1A1A2E),
-                              fontSize: 14, height: 1.5,
+                              color: msg.isUser
+                                  ? Colors.white
+                                  : const Color(0xFF1A1A2E),
+                              fontSize: 14,
+                              height: 1.5,
                             )),
                       ),
                     ),
@@ -701,14 +798,22 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
                   child: TextField(
                     controller: _msgCtrl,
                     maxLength: AppConstants.MAX_CHAT_LENGTH,
-                    maxLines: 3, minLines: 1,
-                    inputFormatters: [LengthLimitingTextInputFormatter(AppConstants.MAX_CHAT_LENGTH)],
+                    maxLines: 3,
+                    minLines: 1,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(
+                          AppConstants.MAX_CHAT_LENGTH)
+                    ],
                     decoration: InputDecoration(
                       hintText: 'Tanya sesuatu...',
                       counterText: '',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      filled: true, fillColor: const Color(0xFFF5F6FA),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F6FA),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                     ),
                   ),
                 ),
@@ -716,14 +821,21 @@ Gunakan Bahasa Indonesia yang ramah dan santai.
                 GestureDetector(
                   onTap: _isLoading ? null : _send,
                   child: Container(
-                    width: 44, height: 44,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: _isLoading ? const Color(0xFF8095E4).withOpacity(0.5) : const Color(0xFF8095E4),
+                      color: _isLoading
+                          ? const Color(0xFF8095E4).withOpacity(0.5)
+                          : const Color(0xFF8095E4),
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: _isLoading
-                        ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 20),
                   ),
                 ),
               ],
@@ -739,7 +851,8 @@ class _SimpleChatMessage {
   final String text;
   final bool isUser;
   final bool isError;
-  _SimpleChatMessage({required this.text, required this.isUser, this.isError = false});
+  _SimpleChatMessage(
+      {required this.text, required this.isUser, this.isError = false});
 }
 
 // ─── Tab 4: Game ──────────────────────────────────────────────────────────────
@@ -754,15 +867,20 @@ class _GameTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Mini Game', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+          const Text('Mini Game',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A2E))),
           const SizedBox(height: 6),
           const Text('Hiburan untuk penghuni kos',
               style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
           const SizedBox(height: 24),
           _GameCard(
             title: 'Flappy Kost',
-            description: 'Bantu burung melewati pipa! Kontrol dengan tap atau gyroscope ponsel.',
-            emoji: '🐦',
+            description:
+                'Bantu penjaga kos terbang melewati rintangan! Kontrol dengan tap atau gyroscope ponsel.',
+            emoji: '🏠',
             badge1: '👆 Tap',
             badge2: '📱 Gyro',
             color: const Color(0xFF8095E4),
@@ -809,13 +927,37 @@ class _GameCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 48)),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFF5F6FA),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/landlord.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child:
+                            Text(emoji, style: const TextStyle(fontSize: 32)),
+                      );
+                    },
+                  ),
+                ),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A2E))),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -830,7 +972,9 @@ class _GameCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(description, style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5)),
+          Text(description,
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF6B7280), height: 1.5)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -838,12 +982,14 @@ class _GameCard extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onPlay,
               icon: const Icon(Icons.play_arrow_rounded, size: 22),
-              label: const Text('Mulai Main', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              label: const Text('Mulai Main',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -866,7 +1012,9 @@ class _Badge extends StatelessWidget {
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
     );
   }
 }

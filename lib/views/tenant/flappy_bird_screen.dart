@@ -45,6 +45,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
 
   // Pipa
   final List<_Pipe> _pipes = [];
+  final List<_Coin> _coins = [];
   double _pipeWidth = 60;
   final double _pipeGap = 0; // Diisi saat build
 
@@ -57,6 +58,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
   double _screenW = 0;
   double _screenH = 0;
   double _birdSize = 0;
+  double _coinSize = 2;
 
   // Gyro raw Y value
   double _gyroY = 0;
@@ -127,6 +129,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
     _birdVelocity = 0;
     _score = 0;
     _pipes.clear();
+    _coins.clear();
     _isDead = false;
     _gyroY = 0;
     _stripScrollX = 0;
@@ -185,10 +188,18 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
       if (_pipes.isEmpty || (_screenW - _pipes.last.x) >= pipeSpawnInterval) {
         final gapCenter = 0.25 + Random().nextDouble() * 0.5;
         final gapNorm = AppConstants.PIPE_GAP / _screenH;
+        final gapTopPx = (_screenH * (gapCenter - gapNorm / 2));
+        final gapBottomPx = (_screenH * (gapCenter + gapNorm / 2));
         _pipes.add(_Pipe(
           x: _screenW,
           gapTop: gapCenter - gapNorm / 2,
           gapBottom: gapCenter + gapNorm / 2,
+        ));
+        _coins.add(_Coin(
+          x: _screenW + ((_pipeWidth - _coinSize) / 2),
+          y: ((gapTopPx + gapBottomPx) / 2 - (_coinSize / 2))
+              .clamp(gapTopPx + 12.0, gapBottomPx - _coinSize - 12.0)
+              .toDouble(),
         ));
       }
 
@@ -196,21 +207,42 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
       final pipeSpeed = AppConstants.PIPE_SPEED / _screenW;
       for (final pipe in _pipes) {
         pipe.x -= pipeSpeed * safeDt * _screenW;
-        // Score: pipa melewati bird
-        if (!pipe.passed && pipe.x + _pipeWidth < _birdX * _screenW) {
-          pipe.passed = true;
-          _score++;
-          HapticFeedback.selectionClick();
-        }
+      }
+      for (final coin in _coins) {
+        coin.x -= pipeSpeed * safeDt * _screenW;
       }
       _pipes.removeWhere((p) => p.x + _pipeWidth < 0);
+      _coins.removeWhere((coin) => coin.x + _coinSize < 0 || coin.collected);
 
       // Sinkronkan pergerakan strip langit-langit/tanah agar terasa menyambung.
       _stripScrollX += AppConstants.PIPE_SPEED * safeDt;
 
+      _checkCoinCollision();
+
       // ── Collision detection ──
       _checkCollision();
     });
+  }
+
+  void _checkCoinCollision() {
+    final birdPixelX = _birdX * _screenW;
+    final birdPixelY = _birdY * _screenH;
+    final birdR = _birdSize / 2 * 0.8;
+    final birdRect = Rect.fromCircle(
+      center: Offset(birdPixelX, birdPixelY),
+      radius: birdR,
+    );
+
+    for (final coin in _coins) {
+      if (coin.collected) continue;
+
+      final coinRect = Rect.fromLTWH(coin.x, coin.y, _coinSize, _coinSize);
+      if (birdRect.overlaps(coinRect)) {
+        coin.collected = true;
+        _score++;
+        HapticFeedback.selectionClick();
+      }
+    }
   }
 
   void _checkCollision() {
@@ -280,7 +312,8 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
         builder: (context, constraints) {
           _screenW = constraints.maxWidth;
           _screenH = constraints.maxHeight;
-          _birdSize = _screenW * 0.10;
+          _birdSize = _screenW * 0.15;
+          _coinSize = _screenW * 0.2;
           _pipeWidth = _screenW * 0.18;
 
           return GestureDetector(
@@ -300,6 +333,11 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
 
                 // Pipes
                 ..._pipes.expand((pipe) => _buildPipe(pipe)),
+
+                // Coins
+                ..._coins
+                    .where((coin) => !coin.collected)
+                    .map((coin) => _buildCoin(coin)),
 
                 // Ground strip (so bottom obstacles can align to it)
                 _buildScrollingStrip(
@@ -401,6 +439,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
   List<Widget> _buildPipe(_Pipe pipe) {
     final gapTopPx = pipe.gapTop * _screenH;
     final gapBottomPx = pipe.gapBottom * _screenH;
+    final groundTop = _screenH * _groundHeightFactor;
 
     return [
       // Top pipe
@@ -409,9 +448,12 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
         top: 0,
         width: _pipeWidth,
         height: max(0.0, gapTopPx),
-        child: _PipeWidget(
-          isTop: true,
-          assetPath: 'assets/images/kotak_mi_sedap.png',
+        child: Transform.rotate(
+          angle: pi,
+          alignment: Alignment.center,
+          child: const _PipeWidget(
+            assetPath: 'assets/images/pipe.png',
+          ),
         ),
       ),
       // Bottom pipe
@@ -419,10 +461,8 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
         left: pipe.x,
         top: gapBottomPx,
         width: _pipeWidth,
-        // make bottom of pipe sit on top of ground strip
-        bottom: (_screenH * _groundHeightFactor),
-        child: _PipeWidget(
-          isTop: false,
+        height: max(0.0, _screenH - groundTop - gapBottomPx),
+        child: const _PipeWidget(
           assetPath: 'assets/images/pipe.png',
         ),
       ),
@@ -464,27 +504,46 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
   }
 
   Widget _buildBird() {
-    return Container(
-      width: _birdSize,
-      height: _birdSize,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF8095E4), width: 2),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))
-        ],
-      ),
-      child: ClipOval(
+    final renderWidth = _birdSize * 1.4;
+    final renderHeight = _birdSize * 1.25;
+
+    return Transform.rotate(
+      angle: -0.16,
+      child: Container(
+        width: renderWidth,
+        height: renderHeight,
+        decoration: const BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 14,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
         child: Image.asset(
           'assets/images/landlord.png',
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return const Center(
-              child: Icon(Icons.person, color: Color(0xFF8095E4), size: 22),
+              child: Icon(Icons.person, color: Color(0xFF8095E4), size: 26),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildCoin(_Coin coin) {
+    return Positioned(
+      left: coin.x,
+      top: coin.y,
+      width: _coinSize,
+      height: _coinSize,
+      child: Image.asset(
+        'assets/images/uang.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
       ),
     );
   }
@@ -501,7 +560,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🐦 Flappy Kost',
+            const Text('Flappy Kost',
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
             Text('High Score: $_highScore',
@@ -622,34 +681,30 @@ class _Pipe {
   _Pipe({required this.x, required this.gapTop, required this.gapBottom});
 }
 
+class _Coin {
+  double x;
+  double y;
+  bool collected = false;
+
+  _Coin({required this.x, required this.y});
+}
+
 // ─── Pipe Widget ───────────────────────────────────────────────────────────────
 
 class _PipeWidget extends StatelessWidget {
-  final bool isTop;
   final String assetPath;
-  const _PipeWidget({required this.isTop, required this.assetPath});
+  const _PipeWidget({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 1),
       child: ClipRect(
-        child: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(assetPath),
-              repeat: ImageRepeat.repeatY,
-              fit: BoxFit.cover,
-              alignment: isTop ? Alignment.topCenter : Alignment.bottomCenter,
-            ),
-          ),
-          // If image fails to load, show a fallback colored box
-          child: Builder(builder: (ctx) {
-            // Attempt to pre-cache asset to detect load errors; fallback handled by
-            // the errorWidget at higher level is not available here, so keep a
-            // simple colored container as resilient fallback.
-            return const SizedBox.expand();
-          }),
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.fill,
+          alignment: Alignment.center,
+          filterQuality: FilterQuality.high,
         ),
       ),
     );
