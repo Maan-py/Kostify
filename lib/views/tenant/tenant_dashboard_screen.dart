@@ -21,6 +21,7 @@ import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'tools_screen.dart';
+import 'change_password_screen.dart';
 import 'tenant_map_screen.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
@@ -592,6 +593,11 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
                 icon: Icons.rate_review_rounded,
                 label: 'Saran & Kesan TPM',
                 onTap: () => Get.to(() => const SaranKesanScreen())),
+            const SizedBox(height: 8),
+            _ProfileMenuItem(
+                icon: Icons.lock_rounded,
+                label: 'Ubah Password',
+                onTap: () => Get.to(() => const ChangePasswordScreen())),
             const SizedBox(height: 8),
             _ProfileMenuItem(
                 icon: Icons.logout_rounded,

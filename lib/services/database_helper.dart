@@ -347,14 +347,11 @@ class DatabaseHelper {
     required String newPassword,
   }) async {
     final db = await database;
-    // Verifikasi password lama
-    final result = await db.query(
-      'users',
-      where: 'id = ? AND password = ?',
-      whereArgs: [userId, DatabaseHelper.hashPassword(oldPassword)],
-    );
-    if (result.isEmpty) return false;
-    // Update password baru
+    final maps =
+        await db.query('users', where: 'id = ?', whereArgs: [userId], limit: 1);
+    if (maps.isEmpty) return false;
+    final storedHash = maps.first['password'] as String? ?? '';
+    if (!DatabaseHelper.verifyPassword(oldPassword, storedHash)) return false;
     await db.update(
       'users',
       {'password': DatabaseHelper.hashPassword(newPassword)},
