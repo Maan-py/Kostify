@@ -914,7 +914,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         );
         anyFilled = true;
       }
-      if (nama.isNotEmpty && _namaCtrl.text.isEmpty) {
+      if (nama.isNotEmpty && _namaCtrl.text != nama) {
         _namaCtrl.text = nama;
         anyFilled = true;
         if (_usernameCtrl.text.isEmpty) {
@@ -926,13 +926,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           _usernameCtrl.text = firstWord;
         }
       }
-      if (alamat.isNotEmpty && _alamatCtrl.text.isEmpty) {
+      if (alamat.isNotEmpty && _alamatCtrl.text != alamat) {
         _alamatCtrl.text = alamat;
         anyFilled = true;
       }
-      if (!anyFilled) {
+      if (!anyFilled && normalizedNik.isEmpty && nama.isEmpty && alamat.isEmpty) {
         _ocrError =
             'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
+      } else {
+        _ocrError = null;
       }
     });
 
