@@ -1893,19 +1893,19 @@ class _OCRDebugOverlayCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Debug OCR Overlay',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
+          // const Text(
+          //   'Debug OCR Overlay',
+          //   style: TextStyle(
+          //     fontSize: 13,
+          //     fontWeight: FontWeight.w700,
+          //     color: Color(0xFF1A1A2E),
+          //   ),
+          // ),
           const SizedBox(height: 4),
-          Text(
-            'Kotak menunjukkan label dan area value yang dipakai parser.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-          ),
+          // Text(
+          //   'Kotak menunjukkan label dan area value yang dipakai parser.',
+          //   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          // ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
