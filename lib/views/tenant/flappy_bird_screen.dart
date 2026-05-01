@@ -67,6 +67,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
   @override
   void initState() {
     super.initState();
+    _sensor.setShakeDetectionEnabled(false);
     _checkGyro();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
@@ -75,6 +76,7 @@ class _FlappyBirdScreenState extends State<FlappyBirdScreen>
   void dispose() {
     _stopGame();
     _sensor.stopGyroscope();
+    _sensor.setShakeDetectionEnabled(true);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
