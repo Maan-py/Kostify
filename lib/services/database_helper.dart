@@ -651,7 +651,21 @@ class DatabaseHelper {
 
   Future<PaymentModel?> getLatestPayment(int userId) async {
     final db = await database;
-    // Ambil data dari tabel payments, urutkan dari ID terbesar (terbaru)
+    
+    // Coba ambil tagihan pending/overdue terlebih dahulu agar button bayar tetap muncul
+    final pendingResult = await db.query(
+      'payments',
+      where: 'user_id = ? AND status != ?',
+      whereArgs: [userId, PaymentStatus.paid.value],
+      orderBy: 'bulan ASC', // Bayar tagihan yang paling lama dulu
+      limit: 1,
+    );
+
+    if (pendingResult.isNotEmpty) {
+      return PaymentModel.fromMap(pendingResult.first);
+    }
+
+    // Kalau tidak ada yang pending, ambil tagihan terakhir (yang sudah lunas)
     final result = await db.query(
       'payments',
       where: 'user_id = ?',
@@ -663,7 +677,7 @@ class DatabaseHelper {
     if (result.isNotEmpty) {
       return PaymentModel.fromMap(result.first);
     }
-    return null; // Balikin null kalau emang belum ada tagihan sama sekali
+    return null;
   }
 
   // ─── EMERGENCY LOG CRUD ────────────────────────────────────────────────────
