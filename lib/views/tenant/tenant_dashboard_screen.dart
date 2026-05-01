@@ -15,6 +15,7 @@ import '../../models/payment_model.dart';
 import '../../controllers/tenant_controller.dart';
 import '../../models/emergency_log_model.dart';
 import '../../services/database_helper.dart';
+import '../../services/notification_service.dart';
 import '../../services/sensor_service.dart';
 import '../../services/api_service.dart';
 import '../../utils/constants.dart';
@@ -105,6 +106,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
   bool _shakeActive = false;
   bool _emergencySent = false;
   bool _latestPaymentLoaded = false;
+  bool _broadcastNotificationsLoaded = false;
   late final Timer _autoRefreshTimer;
 
   @override
@@ -169,6 +171,25 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
           duration: Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  Future<void> _syncBroadcastNotifications() async {
+    if (_broadcastNotificationsLoaded) return;
+
+    final user = _auth.currentUser.value;
+    if (user == null) return;
+
+    _broadcastNotificationsLoaded = true;
+
+    final undelivered = await _db.getUndeliveredBroadcasts(user.id!);
+    for (final broadcast in undelivered) {
+      await NotificationService.instance.showBroadcastNotification(
+        title: broadcast.title,
+        body: broadcast.message,
+        payload: broadcast.id?.toString(),
+      );
+      await _db.markBroadcastDelivered(broadcast.id!, user.id!);
     }
   }
 
@@ -272,6 +293,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
             _tenantController.fetchLatestPayment(user.id!).whenComplete(() {
               if (mounted) setState(() => _latestPaymentLoaded = true);
             });
+          }
+
+          if (!_broadcastNotificationsLoaded) {
+            _syncBroadcastNotifications();
           }
 
           return RefreshIndicator(
