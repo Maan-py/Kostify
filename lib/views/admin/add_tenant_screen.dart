@@ -1471,14 +1471,13 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           label: 'Nomor Telepon *',
           hint: '08xxxxxxxxxx',
           icon: Icons.phone_outlined,
-          maxLength: 15,
+          maxLength: 13,
           keyboardType: TextInputType.phone,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-]')),
-            LengthLimitingTextInputFormatter(15),
+            LengthLimitingTextInputFormatter(13),
           ],
-          validator: (v) =>
-              v?.trim().isEmpty ?? true ? 'Nomor telepon wajib diisi' : null,
+          validator: AppValidators.validateTelepon,
         ),
       ],
     );

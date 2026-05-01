@@ -447,6 +447,68 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     await _refreshTenant();
   }
 
+  Future<void> _editNomorTelepon() async {
+    final currentTelepon = (_tenant.telepon ?? '').trim();
+    final ctrl = TextEditingController(text: currentTelepon);
+    final formKey = GlobalKey<FormState>();
+
+    if (!mounted) return;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Nomor Telepon'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: ctrl,
+                keyboardType: TextInputType.phone,
+                maxLength: 13,
+                decoration: InputDecoration(
+                  labelText: 'Nomor Telepon',
+                  hintText: '08xxxxxxxxxx',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: AppValidators.validateTelepon,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, ctrl.text.trim());
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8095E4),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    ctrl.dispose();
+
+    if (result == null || result == currentTelepon) return;
+    await _db.updateNomorTelepon(_tenant.id!, result);
+    await _refreshTenant();
+  }
+
   Future<void> _deleteTenant() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -554,7 +616,11 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Info Card ──
-                    _InfoCard(tenant: _tenant, onEditKamar: _editNomorKamar),
+                    _InfoCard(
+                      tenant: _tenant, 
+                      onEditKamar: _editNomorKamar,
+                      onEditTelepon: _editNomorTelepon,
+                    ),
                     const SizedBox(height: 16),
 
                     // ── Actions ──
@@ -641,7 +707,8 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
 class _InfoCard extends StatelessWidget {
   final UserModel tenant;
   final VoidCallback onEditKamar;
-  const _InfoCard({required this.tenant, required this.onEditKamar});
+  final VoidCallback onEditTelepon;
+  const _InfoCard({required this.tenant, required this.onEditKamar, required this.onEditTelepon});
 
   @override
   Widget build(BuildContext context) {
@@ -721,7 +788,29 @@ class _InfoCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 12),
           _Row(label: 'NIK', value: tenant.nik ?? '-'),
-          _Row(label: 'Telepon', value: tenant.telepon ?? '-'),
+          Row(
+            children: [
+              const SizedBox(
+                  width: 110,
+                  child: Text('Telepon',
+                      style:
+                          TextStyle(fontSize: 12, color: Color(0xFF6B7280)))),
+              const Text(': ', style: TextStyle(color: Color(0xFF6B7280))),
+              Text(
+                tenant.telepon ?? '-',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A2E)),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: onEditTelepon,
+                child: const Icon(Icons.edit_rounded,
+                    size: 14, color: Color(0xFF8095E4)),
+              ),
+            ],
+          ),
           _Row(label: 'Alamat', value: tenant.alamat ?? '-'),
           _Row(label: 'Tanggal Masuk', value: tenant.tanggalMasuk ?? '-'),
           _Row(

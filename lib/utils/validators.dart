@@ -146,6 +146,19 @@ class AppValidators {
     return null;
   }
 
+  // ─── Nomor Telepon ─────────────────────────────────────────────────────────
+
+  static String? validateTelepon(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Nomor telepon wajib diisi';
+    }
+    final trimmed = value.trim();
+    if (!RegExp(r'^\d{10,13}$').hasMatch(trimmed)) {
+      return 'Nomor tidak valid (10-13 digit angka)';
+    }
+    return null;
+  }
+
   // ─── Nomor Kamar ───────────────────────────────────────────────────────────
 
   static String? validateNomorKamar(String? value) {

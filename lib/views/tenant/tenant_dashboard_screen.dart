@@ -691,11 +691,10 @@ class _RoomCard extends StatelessWidget {
   final _db = DatabaseHelper();
   final _api = ApiService();
 
-  DateTime? _nextPaymentDeadline() {
+  DateTime? _nextPaymentDeadline(PaymentModel? payment) {
     final masuk = DateTime.tryParse(user.tanggalMasuk ?? '');
     if (masuk == null) return null;
 
-    final now = DateTime.now();
     final dueDay = masuk.day;
 
     DateTime buildDeadline(int year, int month, int day) {
@@ -704,6 +703,21 @@ class _RoomCard extends StatelessWidget {
       return DateTime(year, month, safeDay);
     }
 
+    if (payment != null) {
+      final parts = payment.bulan.split('-');
+      if (parts.length == 2) {
+        final pYear = int.tryParse(parts[0]) ?? DateTime.now().year;
+        final pMonth = int.tryParse(parts[1]) ?? DateTime.now().month;
+        
+        if (payment.status == PaymentStatus.paid) {
+           return buildDeadline(pYear, pMonth + 1, dueDay);
+        } else {
+           return buildDeadline(pYear, pMonth, dueDay);
+        }
+      }
+    }
+
+    final now = DateTime.now();
     var deadline = buildDeadline(now.year, now.month, dueDay);
     final today = DateTime(now.year, now.month, now.day);
 
@@ -870,63 +884,57 @@ class _RoomCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.event_note_rounded,
-                    color: Colors.white70, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    deadline != null
-                        ? 'Deadline pembayaran: ${_formatDate(deadline)}'
-                        : 'Deadline pembayaran: -',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
           Obx(() {
-            // Ambil data tagihan terbaru dari controller
-            final payment = tenantController.latestPayment.value;
+            final payment = _tenantController.latestPayment.value;
+            final deadline = _nextPaymentDeadline(payment);
 
-            // LOGIKA 1: Kalau admin belum buat tagihan (data null), jangan munculin apa-apa
-            if (payment == null) {
-              return const SizedBox.shrink();
-            }
-
-            // LOGIKA 2: Kalau statusnya belum lunas, munculin tombol bayar
-            if (payment.status != PaymentStatus.paid) {
-              return SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _handlePayment(context, payment),
-                  icon: const Icon(Icons.payments_outlined, size: 18),
-                  label: const Text('Bayar Sekarang'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+            return Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_note_rounded,
+                          color: Colors.white70, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          deadline != null
+                              ? 'Deadline pembayaran: ${_formatDate(deadline)}'
+                              : 'Deadline pembayaran: -',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            }
-
-            // Kalau sudah lunas, tombol tidak ditampilkan.
-            return const SizedBox.shrink();
-          })
+                const SizedBox(height: 10),
+                if (payment != null && payment.status != PaymentStatus.paid)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _handlePayment(context, payment),
+                      icon: const Icon(Icons.payments_outlined, size: 18),
+                      label: const Text('Bayar Sekarang'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
         ],
       ),
     );
