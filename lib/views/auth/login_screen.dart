@@ -289,10 +289,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildFooter() {
-    return Center(
+    return const Center(
       child: Text(
         '${AppConstants.APP_NAME} v${AppConstants.APP_VERSION}',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           color: Color(0xFF9CA3AF),
         ),

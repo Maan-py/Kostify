@@ -188,14 +188,16 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
       await _sendEmergency();
     }
 
-    if (mounted)
+    if (mounted) {
       setState(() {
         _shakeActive = false;
       });
-    if (mounted)
+    }
+    if (mounted) {
       setState(() {
         _shakeActive = false;
       });
+    }
   }
 
   Future<bool> _showEmergencyCountdown() async {
@@ -263,8 +265,9 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
       body: SafeArea(
         child: Obx(() {
           final user = _auth.currentUser.value;
-          if (user == null)
+          if (user == null) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           if (!_latestPaymentLoaded) {
             _tenantController.fetchLatestPayment(user.id!).whenComplete(() {
@@ -488,8 +491,9 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
       ),
       body: Obx(() {
         final user = _auth.currentUser.value;
-        if (user == null)
+        if (user == null) {
           return const Center(child: CircularProgressIndicator());
+        }
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -770,7 +774,7 @@ class _RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deadline = _nextPaymentDeadline();
-    final _tenantController = Get.put(TenantController());
+    final tenantController = Get.put(TenantController());
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -797,10 +801,10 @@ class _RoomCard extends StatelessWidget {
                           fontSize: 26,
                           fontWeight: FontWeight.w800),
                     ),
-                    Text(
+                    const Text(
                       AppConstants.KOS_NAME,
                       style:
-                          const TextStyle(color: Colors.white70, fontSize: 11),
+                          TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ],
                 ),
@@ -852,7 +856,7 @@ class _RoomCard extends StatelessWidget {
           const SizedBox(height: 10),
           Obx(() {
             // Ambil data tagihan terbaru dari controller
-            final payment = _tenantController.latestPayment.value;
+            final payment = tenantController.latestPayment.value;
 
             // LOGIKA 1: Kalau admin belum buat tagihan (data null), jangan munculin apa-apa
             if (payment == null) {
@@ -1088,10 +1092,10 @@ class _KosInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.apartment_rounded, color: Color(0xFF8095E4), size: 18),
               SizedBox(width: 8),
@@ -1099,9 +1103,9 @@ class _KosInfoCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _InfoRow(icon: Icons.home, label: AppConstants.KOS_NAME),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           _InfoRow(
               icon: Icons.location_on_outlined,
               label: AppConstants.KOS_ADDRESS),

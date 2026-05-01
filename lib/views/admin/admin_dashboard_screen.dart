@@ -120,7 +120,7 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
           color: const Color(0xFF8095E4),
           child: CustomScrollView(
             slivers: [
-              SliverAppBar(
+              const SliverAppBar(
                 expandedHeight: 100,
                 floating: true,
                 snap: true,
@@ -128,19 +128,19 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                 elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
                   titlePadding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   title: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Selamat datang,',
                         style: TextStyle(
                             fontSize: 11,
                             color: Color(0xFF6B7280),
                             fontWeight: FontWeight.w400),
                       ),
-                      const Text(
+                      Text(
                         'Administrator 👋',
                         style: TextStyle(
                             fontSize: 15,

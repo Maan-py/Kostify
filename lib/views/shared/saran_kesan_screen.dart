@@ -76,7 +76,7 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
   await prefs.setBool('${_keySaved}_$userId', true);
 
   setState(() => _isSaved = true);
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
@@ -87,6 +87,7 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
           margin: const EdgeInsets.all(16),
         ),
       );
+    }
   }
 
   @override
@@ -117,15 +118,15 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                   border: Border.all(
                       color: const Color(0xFF8095E4).withOpacity(0.2)),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.school_rounded,
+                        Icon(Icons.school_rounded,
                             color: Color(0xFF8095E4), size: 20),
-                        const SizedBox(width: 8),
-                        const Expanded(
+                        SizedBox(width: 8),
+                        Expanded(
                           child: Text(
                             _mataKuliah,
                             style: TextStyle(
@@ -137,9 +138,9 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _InfoRow(label: 'Dosen', value: _dosen),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     _InfoRow(label: 'Semester', value: _semester),
                   ],
                 ),
