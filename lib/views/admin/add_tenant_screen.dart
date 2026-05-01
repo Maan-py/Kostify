@@ -129,10 +129,12 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('NIK sudah terdaftar. Gunakan NIK yang lain.'),
+                content:
+                    const Text('NIK sudah terdaftar. Gunakan NIK yang lain.'),
                 backgroundColor: Colors.red.shade700,
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 margin: const EdgeInsets.all(16),
               ),
             );
@@ -376,9 +378,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     Rect? nikLabelRect;
     Rect? namaLabelRect;
     Rect? alamatLabelRect;
-    Rect? rtRwLabelRect;
-    Rect? kelDesaLabelRect;
-    Rect? kecamatanLabelRect;
     final maxRight = ocrLines
         .map((line) => line.rect.right)
         .fold<double>(0, (prev, cur) => cur > prev ? cur : prev);
@@ -394,15 +393,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       if (alamatLabelRect == null && _isAlamatLabel(normalized)) {
         alamatLabelRect = line.rect;
       }
-      if (rtRwLabelRect == null && _isRtRwLabel(normalized)) {
-        rtRwLabelRect = line.rect;
-      }
-      if (kelDesaLabelRect == null && _isKelDesaLabel(normalized)) {
-        kelDesaLabelRect = line.rect;
-      }
-      if (kecamatanLabelRect == null && _isKecamatanLabel(normalized)) {
-        kecamatanLabelRect = line.rect;
-      }
     }
 
     var nik = _extractNikByLayout(ocrLines, nikLabelRect);
@@ -414,9 +404,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     final alamat = _extractAlamatComposite(
       lines: ocrLines,
       alamatLabelRect: alamatLabelRect,
-      rtRwLabelRect: rtRwLabelRect,
-      kelDesaLabelRect: kelDesaLabelRect,
-      kecamatanLabelRect: kecamatanLabelRect,
       rawText: recognized.text,
     );
 
@@ -459,34 +446,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         ),
       );
     }
-    if (rtRwLabelRect != null) {
-      debugBoxes.add(
-        _KtpDebugBox(
-          rect: rtRwLabelRect,
-          color: const Color(0xFFEF5350),
-          label: 'Label RT/RW',
-        ),
-      );
-    }
-    if (kelDesaLabelRect != null) {
-      debugBoxes.add(
-        _KtpDebugBox(
-          rect: kelDesaLabelRect,
-          color: const Color(0xFFFF7043),
-          label: 'Label Kel/Desa',
-        ),
-      );
-    }
-    if (kecamatanLabelRect != null) {
-      debugBoxes.add(
-        _KtpDebugBox(
-          rect: kecamatanLabelRect,
-          color: const Color(0xFFFF8A65),
-          label: 'Label Kecamatan',
-        ),
-      );
-    }
-
     final nikRect = _findNikValueRectNearLabel(ocrLines, nikLabelRect, nik) ??
         _findNikValueRect(ocrLines, nik);
     if (nikRect != null) {
@@ -512,7 +471,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
     final alamatRect = _buildAlamatAreaRect(
       alamatLabelRect,
-      kecamatanLabelRect,
       maxRight,
     );
     if (alamatRect != null) {
@@ -619,7 +577,6 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
   Rect? _buildAlamatAreaRect(
     Rect? alamatLabelRect,
-    Rect? kecamatanLabelRect,
     double maxRight,
   ) {
     if (alamatLabelRect == null) return null;
@@ -628,8 +585,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     final top =
         (alamatLabelRect.bottom - 4).clamp(0, double.infinity).toDouble();
     final right = (maxRight + 8).clamp(left + 1, double.infinity).toDouble();
-    final bottom = (kecamatanLabelRect?.bottom ??
-            (alamatLabelRect.bottom + 180).clamp(top + 1, double.infinity))
+    final bottom = (alamatLabelRect.bottom + 180)
+        .clamp(top + 1, double.infinity)
         .toDouble();
     if (bottom <= top || right <= left) return null;
     return Rect.fromLTRB(left, top, right, bottom);
@@ -649,25 +606,12 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       text.contains('NAMA') || text.contains('NAME');
   bool _isAlamatLabel(String text) =>
       text.contains('ALAMAT') || text.contains('LAMAT');
-  bool _isRtRwLabel(String text) =>
-      text.contains('RTRW') ||
-      (text.contains('RT') && text.contains('RW')) ||
-      text.contains('RTR');
-  bool _isKelDesaLabel(String text) =>
-      text.contains('KELDESA') ||
-      text.contains('KELURAHAN') ||
-      text.contains('DESA') ||
-      text.contains('KEL');
-  bool _isKecamatanLabel(String text) => text.contains('KECAMATAN');
 
   bool _looksLikeFieldLabel(String text) {
     final normalized = _normalizeFieldText(text);
     return _isNikLabel(normalized) ||
         _isNamaLabel(normalized) ||
         _isAlamatLabel(normalized) ||
-        _isRtRwLabel(normalized) ||
-        _isKelDesaLabel(normalized) ||
-        _isKecamatanLabel(normalized) ||
         normalized.contains('KECAMATAN') ||
         normalized.contains('KELURAHAN') ||
         normalized.contains('STATUS') ||
@@ -819,32 +763,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   String _extractAlamatComposite({
     required List<_KtpOcrLine> lines,
     required Rect? alamatLabelRect,
-    required Rect? rtRwLabelRect,
-    required Rect? kelDesaLabelRect,
-    required Rect? kecamatanLabelRect,
     required String rawText,
   }) {
-    String cleanAddressPart(String input) {
-      return input
-          .replaceAll(
-              RegExp(
-                  r'^(ALAMAT|RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\s*[:\-]?\s*',
-                  caseSensitive: false),
-              '')
-          .replaceAll(RegExp(r'\s{2,}'), ' ')
-          .trim();
-    }
-
-    String pickPart(Rect? labelRect) {
+    String pickAlamatUtama(Rect? labelRect) {
       if (labelRect == null) return '';
-      final value = _extractSingleValueByAlignment(lines, labelRect);
-      return cleanAddressPart(value);
+      final value = _extractPrimaryAddressByLayout(lines, labelRect);
+      return _sanitizePrimaryAddress(value);
     }
 
-    final alamatMain = pickPart(alamatLabelRect);
-    final rtRw = pickPart(rtRwLabelRect);
-    final kelDesa = pickPart(kelDesaLabelRect);
-    final kecamatan = pickPart(kecamatanLabelRect);
+    final alamatMain = pickAlamatUtama(alamatLabelRect);
 
     final rawMap = _extractAlamatComponentsFromRawText(rawText);
 
@@ -853,21 +780,80 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         alamatMain
       else if ((rawMap['alamat'] ?? '').isNotEmpty)
         rawMap['alamat']!,
-      if (rtRw.isNotEmpty)
-        rtRw
-      else if ((rawMap['rtrw'] ?? '').isNotEmpty)
-        rawMap['rtrw']!,
-      if (kelDesa.isNotEmpty)
-        kelDesa
-      else if ((rawMap['keldesa'] ?? '').isNotEmpty)
-        rawMap['keldesa']!,
-      if (kecamatan.isNotEmpty)
-        kecamatan
-      else if ((rawMap['kecamatan'] ?? '').isNotEmpty)
-        rawMap['kecamatan']!,
     ];
 
     return _mergeAddressParts(merged);
+  }
+
+  String _extractPrimaryAddressByLayout(
+    List<_KtpOcrLine> lines,
+    Rect labelRect,
+  ) {
+    final sameRow = lines.where((line) {
+      final yDelta = (line.rect.center.dy - labelRect.center.dy).abs();
+      return yDelta <= 20 && line.rect.left >= labelRect.right - 8;
+    }).toList()
+      ..sort((a, b) => a.rect.left.compareTo(b.rect.left));
+
+    for (final line in sameRow) {
+      final value = _sanitizePrimaryAddress(line.text);
+      if (value.isEmpty) continue;
+      if (_looksLikeRtRwValue(value)) continue;
+      return value;
+    }
+
+    return '';
+  }
+
+  String _sanitizePrimaryAddress(String input) {
+    if (_isAdministrativeAddressLine(input)) return '';
+
+    final normalized = input
+        .replaceAll(
+            RegExp(
+                r'^(ALAMAT|RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\s*[:\-]?\s*',
+                caseSensitive: false),
+            '')
+        .replaceAll(RegExp(r'^[\s:\-]+'), '')
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trim();
+    if (normalized.isEmpty) return '';
+
+    final firstLine = normalized.split('\n').first.trim();
+    final withoutSuffixFields = firstLine
+        .replaceAll(
+            RegExp(
+                r'\b(RT\s*\/\s*RW|RTRW|KEL\s*\/\s*DESA|KELURAHAN|DESA|KECAMATAN)\b.*$',
+                caseSensitive: false),
+            '')
+        .trim();
+    if (withoutSuffixFields.isEmpty) return '';
+    if (_isAdministrativeAddressLine(withoutSuffixFields)) return '';
+    if (_looksLikeRtRwValue(withoutSuffixFields)) return '';
+    return withoutSuffixFields;
+  }
+
+  bool _isAdministrativeAddressLine(String input) {
+    final normalized = input
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9/]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.isEmpty) return false;
+    return RegExp(
+            r'^(RT\s*\/?\s*RW|RTRW|KEL(\s*\/\s*DESA)?|KELURAHAN|DESA|KECAMATAN)\b')
+        .hasMatch(normalized);
+  }
+
+  bool _looksLikeRtRwValue(String input) {
+    final normalized = input
+        .toUpperCase()
+        .replaceAll(RegExp(r'[Oo]'), '0')
+        .replaceAll(RegExp(r'[Il]'), '1')
+        .replaceAll(RegExp(r'\s+'), '')
+        .trim();
+    if (normalized.isEmpty) return false;
+    return RegExp(r'^\d{1,3}[\/\-]\d{1,3}$').hasMatch(normalized);
   }
 
   Map<String, String> _extractAlamatComponentsFromRawText(String rawText) {
@@ -881,51 +867,22 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       return line
           .replaceAll(
               RegExp('$pattern\\s*[:\\-]?\\s*', caseSensitive: false), '')
+          .replaceAll(RegExp(r'^[\s:\-]+'), '')
           .trim();
     }
 
-    String pickNextIfNeeded(int i, String current) {
-      if (current.isNotEmpty) return current;
-      if (i + 1 >= lines.length) return '';
-      final next = lines[i + 1];
-      if (_looksLikeFieldLabel(next)) return '';
-      return next;
-    }
-
     String alamat = '';
-    String rtrw = '';
-    String keldesa = '';
-    String kecamatan = '';
-
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
       final upper = line.toUpperCase();
 
       if (alamat.isEmpty && upper.contains('ALAMAT')) {
-        alamat = pickNextIfNeeded(i, grabAfterLabel(line, r'ALAMAT'));
-      }
-      if (rtrw.isEmpty &&
-          (upper.contains('RT/RW') ||
-              (upper.contains('RT') && upper.contains('RW')))) {
-        rtrw = pickNextIfNeeded(i, grabAfterLabel(line, r'RT\s*\/?\s*RW'));
-      }
-      if (keldesa.isEmpty &&
-          (upper.contains('KEL/DESA') ||
-              upper.contains('KELURAHAN') ||
-              upper.contains('DESA'))) {
-        keldesa = pickNextIfNeeded(
-            i, grabAfterLabel(line, r'KEL\s*\/?\s*DESA|KELURAHAN|DESA'));
-      }
-      if (kecamatan.isEmpty && upper.contains('KECAMATAN')) {
-        kecamatan = pickNextIfNeeded(i, grabAfterLabel(line, r'KECAMATAN'));
+        alamat = _sanitizePrimaryAddress(grabAfterLabel(line, r'ALAMAT'));
       }
     }
 
     return {
       'alamat': alamat,
-      'rtrw': rtrw,
-      'keldesa': keldesa,
-      'kecamatan': kecamatan,
     };
   }
 
@@ -957,7 +914,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
         );
         anyFilled = true;
       }
-      if (nama.isNotEmpty && _namaCtrl.text.isEmpty) {
+      if (nama.isNotEmpty && _namaCtrl.text != nama) {
         _namaCtrl.text = nama;
         anyFilled = true;
         if (_usernameCtrl.text.isEmpty) {
@@ -969,13 +926,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           _usernameCtrl.text = firstWord;
         }
       }
-      if (alamat.isNotEmpty && _alamatCtrl.text.isEmpty) {
+      if (alamat.isNotEmpty && _alamatCtrl.text != alamat) {
         _alamatCtrl.text = alamat;
         anyFilled = true;
       }
-      if (!anyFilled) {
+      if (!anyFilled && normalizedNik.isEmpty && nama.isEmpty && alamat.isEmpty) {
         _ocrError =
             'OCR tidak dapat membaca data KTP. Silakan isi form secara manual.';
+      } else {
+        _ocrError = null;
       }
     });
 
@@ -1012,6 +971,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     String afterLabel(String line, String label) {
       return line
           .replaceAll(RegExp(label + r'\s*[:\-]?\s*', caseSensitive: false), '')
+          .replaceAll(RegExp(r'^[\s:\-]+'), '')
           .trim();
     }
 
@@ -1021,7 +981,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       if (after.length >= 2) return after;
       // Nilai di baris berikutnya (skip baris yang kelihatan seperti label lain)
       if (i + 1 < lines.length) {
-        final next = lines[i + 1].trim();
+        final next = lines[i + 1].replaceAll(RegExp(r'^[\s:\-]+'), '').trim();
         // Baris berikutnya bukan label KTP lain
         final isAnotherLabel = RegExp(
                 r'^(NIK|NAMA|ALAMAT|RT|RW|KELURAHAN|KECAMATAN|AGAMA|STATUS|PEKERJAAN|KEWARGANEGARAAN|BERLAKU)',
@@ -1090,11 +1050,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
     final rawAlamat = _extractAlamatComponentsFromRawText(rawText);
     final mergedAlamat = _mergeAddressParts([
-      if (alamat.isNotEmpty) alamat,
+      if (alamat.isNotEmpty) _sanitizePrimaryAddress(alamat),
       if ((rawAlamat['alamat'] ?? '').isNotEmpty) rawAlamat['alamat']!,
-      if ((rawAlamat['rtrw'] ?? '').isNotEmpty) rawAlamat['rtrw']!,
-      if ((rawAlamat['keldesa'] ?? '').isNotEmpty) rawAlamat['keldesa']!,
-      if ((rawAlamat['kecamatan'] ?? '').isNotEmpty) rawAlamat['kecamatan']!,
     ]);
 
     if (mergedAlamat.isNotEmpty) {
@@ -1251,7 +1208,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isSaving
                         ? null
-                        : (_currentStep < 2 ? () => _goToNextStep() : _saveTenant),
+                        : (_currentStep < 2
+                            ? () => _goToNextStep()
+                            : _saveTenant),
                     icon: _isSaving
                         ? const SizedBox(
                             width: 16,
@@ -1367,7 +1326,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ),
         ],
         const SizedBox(height: 24),
-        const _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
+        const _SectionHeader(
+            title: 'Data Identitas', icon: Icons.badge_rounded),
         const SizedBox(height: 12),
         _FormField(
           controller: _namaCtrl,
@@ -1933,19 +1893,19 @@ class _OCRDebugOverlayCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Debug OCR Overlay',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
+          // const Text(
+          //   'Debug OCR Overlay',
+          //   style: TextStyle(
+          //     fontSize: 13,
+          //     fontWeight: FontWeight.w700,
+          //     color: Color(0xFF1A1A2E),
+          //   ),
+          // ),
           const SizedBox(height: 4),
-          Text(
-            'Kotak menunjukkan label dan area value yang dipakai parser.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-          ),
+          // Text(
+          //   'Kotak menunjukkan label dan area value yang dipakai parser.',
+          //   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          // ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
