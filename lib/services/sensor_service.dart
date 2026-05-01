@@ -21,6 +21,7 @@ class SensorService {
   DateTime? _lastShakeTime;
   int _shakeCount = 0;
   DateTime? _shakeWindowStart;
+  bool _isShakeDetectionEnabled = true;
   static const _shakeWindowMs = 2500; // Window deteksi shake (ms)
 
   /// Mulai listen accelerometer untuk deteksi guncangan darurat.
@@ -40,6 +41,8 @@ class SensorService {
   }
 
   void _onAccelerometer(AccelerometerEvent event) {
+    if (!_isShakeDetectionEnabled) return;
+
     // Hitung magnitude percepatan (hapus gravitasi dengan perkiraan)
     final magnitude = sqrt(
       event.x * event.x + event.y * event.y + event.z * event.z,
@@ -78,6 +81,17 @@ class SensorService {
     _accelSubscription?.cancel();
     _accelSubscription = null;
     _onShake = null;
+  }
+
+  /// Aktif/nonaktifkan trigger emergency shake tanpa mematikan stream sensor.
+  void setShakeDetectionEnabled(bool enabled) {
+    _isShakeDetectionEnabled = enabled;
+
+    // Reset state supaya tidak ada trigger tertunda saat diaktifkan kembali.
+    if (!enabled) {
+      _shakeCount = 0;
+      _shakeWindowStart = null;
+    }
   }
 
   // ─── Gyroscope ─────────────────────────────────────────────────────────────
