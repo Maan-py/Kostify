@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import '../../services/database_helper.dart';
+import '../../services/chat_context_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 
@@ -42,22 +43,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
   }
 
   Future<void> _loadContext() async {
-    final stats = await _db.getDashboardStats();
-    final tenants = await _db.getAllTenants();
-
-    _systemContext = '''
-Kamu adalah KosBot, asisten AI untuk sistem manajemen kos bernama Kostify.
-Data kos saat ini:
-- Nama kos: ${AppConstants.KOS_NAME}
-- Alamat: ${AppConstants.KOS_ADDRESS}
-- Total penghuni: ${stats['total_tenant']}
-- Penghuni aktif: ${stats['tenant_aktif']}
-- Penghuni nonaktif: ${stats['tenant_nonaktif']}
-- Pendapatan bulan ${stats['bulan']}: ${AppValidators.formatRupiah(stats['pendapatan_bulan_ini'] as int? ?? 0)}
-- Tagihan pending bulan ini: ${stats['tagihan_pending']}
-Jawab pertanyaan admin seputar manajemen kos, rekap data, atau saran pengelolaan kos. 
-Gunakan Bahasa Indonesia yang ramah dan profesional.
-''';
+    _systemContext = await ChatContextService().getAdminChatContext();
   }
 
   void _addWelcome() {
