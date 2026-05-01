@@ -468,6 +468,20 @@ class DatabaseHelper {
     }
   }
 
+  Future<int> updateNomorTelepon(int userId, String telepon) async {
+    try {
+      final db = await database;
+      return await db.update(
+        'users',
+        {'telepon': telepon},
+        where: 'id = ? AND role = ?',
+        whereArgs: [userId, 'tenant'],
+      );
+    } catch (e) {
+      return 0;
+    }
+  }
+
   // ─── Get Available Rooms ──────────────────────────────────────────────────
 
   /// Get list of available room numbers (not assigned to any tenant yet)
