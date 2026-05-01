@@ -645,10 +645,10 @@ class _GreetingHeader extends StatelessWidget {
 
   String _getGreeting() {
     final h = DateTime.now().hour;
-    if (h < 11) return 'Selamat pagi';
-    if (h < 15) return 'Selamat siang';
-    if (h < 18) return 'Selamat sore';
-    return 'Selamat malam';
+    if (h < 11) return 'Selamat pagi,';
+    if (h < 15) return 'Selamat siang,';
+    if (h < 18) return 'Selamat sore,';
+    return 'Selamat malam,';
   }
 
   @override
@@ -668,7 +668,7 @@ class _GreetingHeader extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF8095E4))),
+                      color: Colors.black)),
             ],
           ),
         ),
