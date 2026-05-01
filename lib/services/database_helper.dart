@@ -506,7 +506,7 @@ class DatabaseHelper {
       }
 
       // Generate room numbers from centralized visual room mapping (13 kamar)
-      final allRooms = AppConstants.ROOM_LABELS;
+      const allRooms = AppConstants.ROOM_LABELS;
 
       // Filter available rooms (not occupied)
       final availableRooms =
