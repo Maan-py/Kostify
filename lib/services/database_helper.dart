@@ -299,6 +299,22 @@ class DatabaseHelper {
     }
   }
 
+  Future<UserModel?> getUserByNik(String nik) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'users',
+        where: 'nik = ?',
+        whereArgs: [nik.trim()],
+        limit: 1,
+      );
+      if (maps.isEmpty) return null;
+      return UserModel.fromMap(maps.first);
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<List<UserModel>> getAllTenants({bool? isActive}) async {
     try {
       final db = await database;
@@ -347,14 +363,11 @@ class DatabaseHelper {
     required String newPassword,
   }) async {
     final db = await database;
-    // Verifikasi password lama
-    final result = await db.query(
-      'users',
-      where: 'id = ? AND password = ?',
-      whereArgs: [userId, DatabaseHelper.hashPassword(oldPassword)],
-    );
-    if (result.isEmpty) return false;
-    // Update password baru
+    final maps =
+        await db.query('users', where: 'id = ?', whereArgs: [userId], limit: 1);
+    if (maps.isEmpty) return false;
+    final storedHash = maps.first['password'] as String? ?? '';
+    if (!DatabaseHelper.verifyPassword(oldPassword, storedHash)) return false;
     await db.update(
       'users',
       {'password': DatabaseHelper.hashPassword(newPassword)},
@@ -370,6 +383,13 @@ class DatabaseHelper {
       // Cek duplikat username sebelum insert
       final existing = await getUserByUsername(user.username);
       if (existing != null) throw Exception('Username sudah digunakan');
+      
+      // Cek duplikat NIK sebelum insert (jika NIK tidak kosong)
+      if (user.nik != null && user.nik!.trim().isNotEmpty) {
+        final existingNik = await getUserByNik(user.nik!);
+        if (existingNik != null) throw Exception('NIK sudah terdaftar');
+      }
+      
       return await db.insert('users', user.toMap());
     } on DatabaseException catch (e) {
       if (e.isUniqueConstraintError()) {
@@ -631,7 +651,21 @@ class DatabaseHelper {
 
   Future<PaymentModel?> getLatestPayment(int userId) async {
     final db = await database;
-    // Ambil data dari tabel payments, urutkan dari ID terbesar (terbaru)
+    
+    // Coba ambil tagihan pending/overdue terlebih dahulu agar button bayar tetap muncul
+    final pendingResult = await db.query(
+      'payments',
+      where: 'user_id = ? AND status != ?',
+      whereArgs: [userId, PaymentStatus.paid.value],
+      orderBy: 'bulan ASC', // Bayar tagihan yang paling lama dulu
+      limit: 1,
+    );
+
+    if (pendingResult.isNotEmpty) {
+      return PaymentModel.fromMap(pendingResult.first);
+    }
+
+    // Kalau tidak ada yang pending, ambil tagihan terakhir (yang sudah lunas)
     final result = await db.query(
       'payments',
       where: 'user_id = ?',
@@ -643,7 +677,7 @@ class DatabaseHelper {
     if (result.isNotEmpty) {
       return PaymentModel.fromMap(result.first);
     }
-    return null; // Balikin null kalau emang belum ada tagihan sama sekali
+    return null;
   }
 
   // ─── EMERGENCY LOG CRUD ────────────────────────────────────────────────────

@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
+import '../../services/chat_context_service.dart';
+import '../../controllers/auth_controller.dart';
 import '../../utils/constants.dart';
 import 'flappy_bird_screen.dart';
 // Reuse chat bubble component
@@ -645,17 +647,27 @@ class _TenantChatTabState extends State<_TenantChatTab> {
   final List<Map<String, String>> _history = [];
   bool _isLoading = false;
 
-  static const _systemCtx = '''
+  String _systemCtx = '';
+
+  Future<void> _loadContext() async {
+    final userId = AuthController.to.currentUser.value?.id;
+    if (userId != null) {
+      _systemCtx = await ChatContextService().getTenantChatContext(userId);
+    } else {
+      _systemCtx = '''
 Kamu adalah KosBot, asisten AI untuk penghuni kos Kostify.
 Alamat kos: ${AppConstants.KOS_ADDRESS}.
 Bantu penghuni dengan informasi aturan kos, tips tinggal di kos, informasi umum, 
 pertanyaan tentang lokasi kos, dan hal-hal umum lainnya.
 Gunakan Bahasa Indonesia yang ramah dan santai.
 ''';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadContext();
     _messages.add(_SimpleChatMessage(
       text:
           'Halo! Saya KosBot 🏠\nAda yang bisa saya bantu seputar kos atau hal lainnya?',

@@ -216,6 +216,24 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         return;
       }
 
+      if (_tenant.tanggalMasuk != null) {
+        final masukDate = DateTime.tryParse(_tenant.tanggalMasuk!);
+        if (masukDate != null) {
+          final masukBulanStr = '${masukDate.year}-${masukDate.month.toString().padLeft(2, '0')}';
+          if (bulan.compareTo(masukBulanStr) < 0) {
+             if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(
+                 const SnackBar(
+                   content: Text('Tidak dapat menambah tagihan sebelum bulan tanggal masuk.'),
+                   backgroundColor: Colors.red,
+                 ),
+               );
+             }
+             return;
+          }
+        }
+      }
+
       // Validasi apakah tagihan untuk bulan tersebut sudah ada
       final exists = await _db.isPaymentExists(_tenant.id!, bulan);
       if (exists) {

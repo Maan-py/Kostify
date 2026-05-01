@@ -15,12 +15,15 @@ import '../../models/payment_model.dart';
 import '../../controllers/tenant_controller.dart';
 import '../../models/emergency_log_model.dart';
 import '../../services/database_helper.dart';
+import '../../services/notification_service.dart';
 import '../../services/sensor_service.dart';
 import '../../services/api_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
+import '../shared/dashboard_timezone_card.dart';
 import 'tools_screen.dart';
+import 'change_password_screen.dart';
 import 'tenant_map_screen.dart';
 
 class TenantDashboardScreen extends StatefulWidget {
@@ -103,6 +106,7 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
   bool _shakeActive = false;
   bool _emergencySent = false;
   bool _latestPaymentLoaded = false;
+  bool _broadcastNotificationsLoaded = false;
   late final Timer _autoRefreshTimer;
 
   @override
@@ -167,6 +171,25 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
           duration: Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  Future<void> _syncBroadcastNotifications() async {
+    if (_broadcastNotificationsLoaded) return;
+
+    final user = _auth.currentUser.value;
+    if (user == null) return;
+
+    _broadcastNotificationsLoaded = true;
+
+    final undelivered = await _db.getUndeliveredBroadcasts(user.id!);
+    for (final broadcast in undelivered) {
+      await NotificationService.instance.showBroadcastNotification(
+        title: broadcast.title,
+        body: broadcast.message,
+        payload: broadcast.id?.toString(),
+      );
+      await _db.markBroadcastDelivered(broadcast.id!, user.id!);
     }
   }
 
@@ -273,6 +296,10 @@ class _TenantHomeTabState extends State<_TenantHomeTab>
             _tenantController.fetchLatestPayment(user.id!).whenComplete(() {
               if (mounted) setState(() => _latestPaymentLoaded = true);
             });
+          }
+
+          if (!_broadcastNotificationsLoaded) {
+            _syncBroadcastNotifications();
           }
 
           return RefreshIndicator(
@@ -598,6 +625,11 @@ class _TenantProfileTabState extends State<_TenantProfileTab> {
                 onTap: () => Get.to(() => const SaranKesanScreen())),
             const SizedBox(height: 8),
             _ProfileMenuItem(
+                icon: Icons.lock_rounded,
+                label: 'Ubah Password',
+                onTap: () => Get.to(() => const ChangePasswordScreen())),
+            const SizedBox(height: 8),
+            _ProfileMenuItem(
                 icon: Icons.logout_rounded,
                 label: 'Keluar',
                 color: Colors.red.shade600,
@@ -617,25 +649,35 @@ class _GreetingHeader extends StatelessWidget {
 
   String _getGreeting() {
     final h = DateTime.now().hour;
-    if (h < 11) return 'Selamat pagi';
-    if (h < 15) return 'Selamat siang';
-    if (h < 18) return 'Selamat sore';
-    return 'Selamat malam';
+    if (h < 11) return 'Selamat pagi,';
+    if (h < 15) return 'Selamat siang,';
+    if (h < 18) return 'Selamat sore,';
+    return 'Selamat malam,';
   }
 
   @override
   Widget build(BuildContext context) {
     final firstName = (user.namaLengkap ?? user.username).split(' ').first;
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_getGreeting(),
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-        Text(firstName,
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A2E))),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_getGreeting(),
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              Text(firstName,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        const DashboardTimezoneCard(accentColor: Color(0xFF8095E4)),
       ],
     );
   }

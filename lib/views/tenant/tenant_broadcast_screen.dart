@@ -166,7 +166,7 @@ class _TenantBroadcastScreenState extends State<TenantBroadcastScreen> {
                       final broadcast = _broadcasts[index];
                       final unread = !broadcast.isRead;
                       return InkWell(
-                        onTap: () => _openBroadcast(broadcast),
+                        // onTap: () => _openBroadcast(broadcast),
                         borderRadius: BorderRadius.circular(18),
                         child: Container(
                           padding: const EdgeInsets.all(16),

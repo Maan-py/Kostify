@@ -20,7 +20,8 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentIndex = 0;
 
-  final GlobalKey<_AdminHomeTabState> _homeKey = GlobalKey<_AdminHomeTabState>();
+  final GlobalKey<_AdminHomeTabState> _homeKey =
+      GlobalKey<_AdminHomeTabState>();
   late final List<Widget> _pages;
 
   @override
@@ -425,7 +426,7 @@ class _PendapatanCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade400.withOpacity(0.8),
+                    color: Colors.white.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
