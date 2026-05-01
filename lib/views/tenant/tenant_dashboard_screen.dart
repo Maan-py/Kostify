@@ -20,6 +20,7 @@ import '../../services/api_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
+import '../shared/dashboard_timezone_card.dart';
 import 'tools_screen.dart';
 import 'change_password_screen.dart';
 import 'tenant_map_screen.dart';
@@ -628,16 +629,26 @@ class _GreetingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firstName = (user.namaLengkap ?? user.username).split(' ').first;
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_getGreeting(),
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-        Text(firstName,
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A2E))),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_getGreeting(),
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              Text(firstName,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF8095E4))),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        const DashboardTimezoneCard(accentColor: Color(0xFF8095E4)),
       ],
     );
   }
