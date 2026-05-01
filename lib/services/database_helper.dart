@@ -299,6 +299,22 @@ class DatabaseHelper {
     }
   }
 
+  Future<UserModel?> getUserByNik(String nik) async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'users',
+        where: 'nik = ?',
+        whereArgs: [nik.trim()],
+        limit: 1,
+      );
+      if (maps.isEmpty) return null;
+      return UserModel.fromMap(maps.first);
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<List<UserModel>> getAllTenants({bool? isActive}) async {
     try {
       final db = await database;
@@ -367,6 +383,13 @@ class DatabaseHelper {
       // Cek duplikat username sebelum insert
       final existing = await getUserByUsername(user.username);
       if (existing != null) throw Exception('Username sudah digunakan');
+      
+      // Cek duplikat NIK sebelum insert (jika NIK tidak kosong)
+      if (user.nik != null && user.nik!.trim().isNotEmpty) {
+        final existingNik = await getUserByNik(user.nik!);
+        if (existingNik != null) throw Exception('NIK sudah terdaftar');
+      }
+      
       return await db.insert('users', user.toMap());
     } on DatabaseException catch (e) {
       if (e.isUniqueConstraintError()) {
