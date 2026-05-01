@@ -45,8 +45,8 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF8095E4).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                    color: const Color(0xFF8095E4).withOpacity(0.2)),
+                border:
+                    Border.all(color: const Color(0xFF8095E4).withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

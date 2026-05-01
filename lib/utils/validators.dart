@@ -176,7 +176,8 @@ class AppValidators {
 
   // ─── Generic Tidak Boleh Kosong ────────────────────────────────────────────
 
-  static String? validateNotEmpty(String? value, {String fieldName = 'Field ini'}) {
+  static String? validateNotEmpty(String? value,
+      {String fieldName = 'Field ini'}) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName tidak boleh kosong';
     }
