@@ -1,11 +1,6 @@
 // lib/views/shared/saran_kesan_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../controllers/auth_controller.dart';
-import '../../utils/constants.dart';
-import '../../utils/validators.dart';
 
 class SaranKesanScreen extends StatefulWidget {
   const SaranKesanScreen({super.key});
@@ -15,79 +10,17 @@ class SaranKesanScreen extends StatefulWidget {
 }
 
 class _SaranKesanScreenState extends State<SaranKesanScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _saranCtrl = TextEditingController();
-  final _kesanCtrl = TextEditingController();
-  bool _isSaved = false;
-
-  static const _keyKesan = 'saran_kesan_kesan';
-  static const _keySaran = 'saran_kesan_saran';
-  static const _keySaved = 'saran_kesan_is_saved';
-
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
   static const _dosen =
       'Bagus Muhammad Akbar, S.ST., M.Kom'; // Ganti sesuai dosen asli
   static const _semester = 'Semester Genap 2025/2026';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSaved();
-  }
-
-  Future<void> _loadSaved() async {
-    final prefs = await SharedPreferences.getInstance();
-  // Ambil ID User yang sedang login
-  final userId = AuthController.to.currentUser.value?.id ?? 0;
-  
-  // Tambahkan ID ke dalam kunci
-  final saved = prefs.getBool('${_keySaved}_$userId') ?? false;
-  
-  if (saved) {
-    _kesanCtrl.text = prefs.getString('${_keyKesan}_$userId') ?? '';
-    _saranCtrl.text = prefs.getString('${_keySaran}_$userId') ?? '';
-    setState(() => _isSaved = true);
-  } else {
-    // Reset form jika user baru ini belum pernah mengisi
-    _kesanCtrl.clear();
-    _saranCtrl.clear();
-    setState(() => _isSaved = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _saranCtrl.dispose();
-    _kesanCtrl.dispose();
-    super.dispose();
-  }
-
-  void _simpan() async {
-    FocusScope.of(context).unfocus();
-  if (!(_formKey.currentState?.validate() ?? false)) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  final userId = AuthController.to.currentUser.value?.id ?? 0;
-
-  // Simpan dengan kunci yang unik per user
-  await prefs.setString('${_keyKesan}_$userId', _kesanCtrl.text);
-  await prefs.setString('${_keySaran}_$userId', _saranCtrl.text);
-  await prefs.setBool('${_keySaved}_$userId', true);
-
-  setState(() => _isSaved = true);
-    if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Saran & Kesan berhasil disimpan. Terima kasih!'),
-          backgroundColor: const Color(0xFF1BC0BA),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-  }
+  // Pesan kesan dan saran yang statis (hard-coded)
+  static const _kesanStatis =
+      'Mata kuliah ini sangat bermanfaat untuk mempelajari dasar-dasar pemrograman mobile. Materi yang disampaikan cukup komprehensif dan praktik yang dilakukan membantu pemahaman.';
+  static const _saranStatis =
+      'Tingkatkan lebih banyak sesi praktik dan berikan lebih banyak studi kasus real-world. Bantuan dari asisten juga bisa ditingkatkan agar lebih responsif.';
 
   @override
   Widget build(BuildContext context) {
@@ -102,180 +35,98 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Info Mata Kuliah
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8095E4).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: const Color(0xFF8095E4).withOpacity(0.2)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.school_rounded,
-                            color: Color(0xFF8095E4), size: 20),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            _mataKuliah,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A2E),
-                              fontSize: 14,
-                            ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Info Mata Kuliah
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8095E4).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: const Color(0xFF8095E4).withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.school_rounded,
+                          color: Color(0xFF8095E4), size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          _mataKuliah,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A2E),
+                            fontSize: 14,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoRow(label: 'Dosen', value: _dosen),
-                    const SizedBox(height: 4),
-                    _InfoRow(label: 'Semester', value: _semester),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Kesan
-              const _FieldLabel(text: 'Kesan terhadap mata kuliah TPM'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _kesanCtrl,
-                maxLines: 5,
-                maxLength: AppConstants.MAX_SARAN_LENGTH,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(
-                      AppConstants.MAX_SARAN_LENGTH),
-                ],
-                validator: AppValidators.validateSaranKesan,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-                decoration: _inputDecoration(
-                  hint: 'Tulis kesan kamu selama mengikuti mata kuliah ini...',
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Saran
-              const _FieldLabel(text: 'Saran untuk mata kuliah TPM'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _saranCtrl,
-                maxLines: 5,
-                maxLength: AppConstants.MAX_SARAN_LENGTH,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(
-                      AppConstants.MAX_SARAN_LENGTH),
-                ],
-                validator: AppValidators.validateSaranKesan,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-                decoration: _inputDecoration(
-                  hint:
-                      'Tulis saran kamu untuk pengembangan mata kuliah ini...',
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _simpan,
-                  icon: const Icon(Icons.save_rounded, size: 20),
-                  label: const Text('Simpan Saran & Kesan',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8095E4),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
+                  _InfoRow(label: 'Dosen', value: _dosen),
+                  const SizedBox(height: 4),
+                  _InfoRow(label: 'Semester', value: _semester),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Kesan (Read-only)
+            const _FieldLabel(text: 'Kesan terhadap mata kuliah TPM'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Text(
+                _kesanStatis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF1A1A2E),
+                  height: 1.5,
                 ),
               ),
-              // if (_isSaved) ...[
-              //   const SizedBox(height: 16),
-              //   Container(
-              //     width: double.infinity,
-              //     padding: const EdgeInsets.all(16),
-              //     decoration: BoxDecoration(
-              //       color: const Color(0xFF1BC0BA).withOpacity(0.08),
-              //       borderRadius: BorderRadius.circular(14),
-              //       border: Border.all(
-              //           color: const Color(0xFF1BC0BA).withOpacity(0.3)),
-              //     ),
-              //     // UPDATE: Tambahkan mainAxisSize: MainAxisSize.min
-              //     child: Row(
-              //       mainAxisAlignment: MainAxisAlignment.center,
-              //       mainAxisSize: MainAxisSize.min, // Ini kuncinya!
-              //       children: [
-              //         const Icon(Icons.check_circle_rounded,
-              //             color: Color(0xFF1BC0BA)),
-              //         const SizedBox(width: 8),
-              //         Flexible(
-              //           child: Text(
-              //             'Sudah disimpan.',
-              //             style: const TextStyle(
-              //               color: Color(0xFF0F6E56),
-              //               fontWeight: FontWeight.w600,
-              //             ),
-              //             overflow: TextOverflow.ellipsis,
-              //           ),
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              // ],
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+
+            // Saran (Read-only)
+            const _FieldLabel(text: 'Saran untuk mata kuliah TPM'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Text(
+                _saranStatis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF1A1A2E),
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDecoration({required String hint}) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF8095E4), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE53935)),
-      ),
-      contentPadding: const EdgeInsets.all(14),
     );
   }
 }
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
-
-// Expose maxLength untuk digunakan di validators
-extension AppValidatorsExt on AppValidators {
-  static int get maxSaranLength => 1000;
-}
 
 class _FieldLabel extends StatelessWidget {
   final String text;

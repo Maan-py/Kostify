@@ -174,19 +174,10 @@ class AppValidators {
     return null;
   }
 
-  static String? validateSaranKesan(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Saran & Kesan tidak boleh kosong';
-    }
-    if (value.length > AppConstants.MAX_SARAN_LENGTH) {
-      return 'Teks terlalu panjang (maks ${AppConstants.MAX_SARAN_LENGTH} karakter)';
-    }
-    return null;
-  }
-
   // ─── Generic Tidak Boleh Kosong ────────────────────────────────────────────
 
-  static String? validateNotEmpty(String? value, {String fieldName = 'Field ini'}) {
+  static String? validateNotEmpty(String? value,
+      {String fieldName = 'Field ini'}) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName tidak boleh kosong';
     }
