@@ -19,7 +19,6 @@ import '../../services/database_helper.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import 'ktp_camera_capture_screen.dart';
-import '../auth/login_screen.dart'; // reuse _KostifyTextField
 
 class AddTenantScreen extends StatefulWidget {
   const AddTenantScreen({super.key});
@@ -118,22 +117,46 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     _loadAvailableRooms();
   }
 
-  void _goToNextStep() {
-    if (_formKeys[_currentStep].currentState?.validate() ?? false) {
-      if (_currentStep == 1 && _selectedKamar == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Pilih nomor kamar terlebih dahulu'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
+  Future<void> _goToNextStep() async {
+    if (!(_formKeys[_currentStep].currentState?.validate() ?? false)) return;
+
+    // Step 0: Validasi NIK keunikan saat move ke step 1
+    if (_currentStep == 0) {
+      final nik = _nikCtrl.text.trim();
+      if (nik.isNotEmpty) {
+        final existingNik = await _db.getUserByNik(nik);
+        if (existingNik != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('NIK sudah terdaftar. Gunakan NIK yang lain.'),
+                backgroundColor: Colors.red.shade700,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
+          }
+          return;
+        }
       }
-      // Simpan selected kamar ke controller untuk save nanti
-      _nomorKamarCtrl.text = _selectedKamar ?? '';
-      setState(() => _currentStep += 1);
     }
+
+    // Step 1: Cek pemilihan kamar
+    if (_currentStep == 1 && _selectedKamar == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Pilih nomor kamar terlebih dahulu'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Simpan selected kamar ke controller untuk save nanti
+    _nomorKamarCtrl.text = _selectedKamar ?? '';
+    setState(() => _currentStep += 1);
   }
 
   void _goToPreviousStep() {
@@ -1211,7 +1234,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                 if (_currentStep > 0)
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _goToPreviousStep,
+                      onPressed: () => _goToPreviousStep(),
                       icon: const Icon(Icons.arrow_back_rounded, size: 18),
                       label: const Text('Kembali'),
                       style: OutlinedButton.styleFrom(
@@ -1228,7 +1251,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isSaving
                         ? null
-                        : (_currentStep < 2 ? _goToNextStep : _saveTenant),
+                        : (_currentStep < 2 ? () => _goToNextStep() : _saveTenant),
                     icon: _isSaving
                         ? const SizedBox(
                             width: 16,
