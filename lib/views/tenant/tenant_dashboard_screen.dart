@@ -829,8 +829,9 @@ class _RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deadline = _nextPaymentDeadline();
-    final tenantController = Get.put(TenantController());
+    // final deadline = _nextPaymentDeadline();
+    final _tenantController = Get.put(TenantController());
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
