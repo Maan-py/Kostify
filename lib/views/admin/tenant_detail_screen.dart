@@ -207,11 +207,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       final amount = int.tryParse(amountCtrl.text.trim()) ?? 0;
 
       if (bulan.isEmpty || amount <= 0) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text('Data tidak valid'), backgroundColor: Colors.red),
           );
+        }
         return;
       }
 

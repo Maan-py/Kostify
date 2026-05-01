@@ -1009,15 +1009,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     String alamat = '';
 
     // Helper: ekstrak nilai setelah label (contoh "NAMA : Budi" → "Budi")
-    String _afterLabel(String line, String label) {
+    String afterLabel(String line, String label) {
       return line
           .replaceAll(RegExp(label + r'\s*[:\-]?\s*', caseSensitive: false), '')
           .trim();
     }
 
     // Helper: cek apakah baris mengandung label, tapi ISI-nya ada di baris yg sama atau berikutnya
-    String _extractValue(List<String> lines, int i, String label) {
-      final after = _afterLabel(lines[i], label);
+    String extractValue(List<String> lines, int i, String label) {
+      final after = afterLabel(lines[i], label);
       if (after.length >= 2) return after;
       // Nilai di baris berikutnya (skip baris yang kelihatan seperti label lain)
       if (i + 1 < lines.length) {
@@ -1072,7 +1072,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       if (nama.isEmpty &&
           RegExp(r'^N[aA][mMnN][aAeE]', caseSensitive: false)
               .hasMatch(lineUpper)) {
-        final val = _extractValue(lines, i, r'N[aA][mMnN][aAeE]');
+        final val = extractValue(lines, i, r'N[aA][mMnN][aAeE]');
         final normalizedName = _normalizeNameCandidate(val);
         if (normalizedName.isNotEmpty && !val.toUpperCase().contains('NIK')) {
           nama = normalizedName;
@@ -1081,7 +1081,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
 
       // ── Alamat utama ─────────────────────────────────────────────────────
       if (alamat.isEmpty && lineUpper.contains('ALAMAT')) {
-        final val = _extractValue(lines, i, r'ALAMAT');
+        final val = extractValue(lines, i, r'ALAMAT');
         if (val.length >= 3) {
           alamat = val;
         }
@@ -1350,7 +1350,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        const _SectionHeader(
             title: 'Scan KTP Penyewa', icon: Icons.document_scanner_rounded),
         const SizedBox(height: 14),
         _KTPScanCard(
@@ -1367,7 +1367,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ),
         ],
         const SizedBox(height: 24),
-        _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
+        const _SectionHeader(title: 'Data Identitas', icon: Icons.badge_rounded),
         const SizedBox(height: 12),
         _FormField(
           controller: _namaCtrl,
@@ -1417,7 +1417,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: 'Data Kos', icon: Icons.home_work_rounded),
+        const _SectionHeader(title: 'Data Kos', icon: Icons.home_work_rounded),
         const SizedBox(height: 12),
         // ── Dropdown Nomor Kamar ──
         _isLoadingRooms
@@ -1464,7 +1464,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ),
         ),
         const SizedBox(height: 18),
-        _SectionHeader(title: 'Data Kontak', icon: Icons.phone_outlined),
+        const _SectionHeader(title: 'Data Kontak', icon: Icons.phone_outlined),
         const SizedBox(height: 12),
         _FormField(
           controller: _teleponCtrl,
@@ -1485,7 +1485,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   }
 
   Widget _buildVisualRoomMapping() {
-    final allRooms = AppConstants.ROOM_LABELS;
+    const allRooms = AppConstants.ROOM_LABELS;
     final availableCount = _availableRooms.length;
     final primary = Color(AppColors.primaryColor.toInt);
     final textPrimary = Color(AppColors.textPrimary.toInt);
@@ -1637,7 +1637,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        const _SectionHeader(
             title: 'Akun Login Penyewa', icon: Icons.lock_outline_rounded),
         const SizedBox(height: 12),
         Container(
@@ -1649,8 +1649,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
           ),
           child: Row(
             children: [
-              Icon(Icons.info_outline_rounded,
-                  color: const Color(0xFF1BC0BA), size: 18),
+              const Icon(Icons.info_outline_rounded,
+                  color: Color(0xFF1BC0BA), size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1967,10 +1967,10 @@ class _OCRDebugOverlayCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Wrap(
+          const Wrap(
             spacing: 8,
             runSpacing: 6,
-            children: const [
+            children: [
               _DebugLegendChip(color: Color(0xFF42A5F5), label: 'Label'),
               _DebugLegendChip(color: Color(0xFF26C6DA), label: 'Value'),
               _DebugLegendChip(color: Color(0xFFFFA726), label: 'Area'),

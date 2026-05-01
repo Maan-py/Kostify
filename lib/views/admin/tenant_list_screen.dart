@@ -52,11 +52,12 @@ class _TenantListScreenState extends State<TenantListScreen> {
       result = await _db.getAllTenants(isActive: _filterActive);
     }
 
-    if (mounted)
+    if (mounted) {
       setState(() {
         _tenants = result;
         _isLoading = false;
       });
+    }
   }
 
   Future<void> _toggleStatus(UserModel tenant) async {
