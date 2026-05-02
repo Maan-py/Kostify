@@ -13,14 +13,13 @@ class _SaranKesanScreenState extends State<SaranKesanScreen> {
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
   static const _dosen =
-      'Bagus Muhammad Akbar, S.ST., M.Kom'; // Ganti sesuai dosen asli
+      'Bagus Muhammad Akbar, S.ST., M.Kom'; 
   static const _semester = 'Semester Genap 2025/2026';
 
-  // Pesan kesan dan saran yang statis (hard-coded)
   static const _kesanStatis =
-      'Mata kuliah ini sangat bermanfaat untuk mempelajari dasar-dasar pemrograman mobile. Materi yang disampaikan cukup komprehensif dan praktik yang dilakukan membantu pemahaman.';
+      'Mata kuliah TPM ini kriterianya turun tidak terkira. Materi yang diberikan di teori banyak, tapi projek akhirnya lebih banyak lagi😭, saya pergi healing masih bawa laptop untuk mengerjakan TPM. Tetapi dari mengerjakan projek ini, kami jadi punya portofolio😁';
   static const _saranStatis =
-      'Tingkatkan lebih banyak sesi praktik dan berikan lebih banyak studi kasus real-world. Bantuan dari asisten juga bisa ditingkatkan agar lebih responsif.';
+      'Tolong tugasnya jangan terlalu diinikan pak🙏 sama deadlinenya tolong diperpanjang juga pak😭 (tidur pun tak tenang)';
 
   @override
   Widget build(BuildContext context) {
