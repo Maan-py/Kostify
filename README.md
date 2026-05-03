@@ -11,7 +11,7 @@ Kostify adalah aplikasi Flutter untuk manajemen kos berbasis role (admin dan ten
 - ✅ Login dengan username dan password
 - ✅ Autentikasi biometrik (fingerprint/face ID) menggunakan `local_auth`
 - ✅ Penyimpanan kredensial aman menggunakan `flutter_secure_storage`
-- ✅ Enkripsi password menggunakan bcrypt
+- ✅ Enkripsi password menggunakan decrypt
 
 ### Fitur Admin
 
@@ -34,14 +34,14 @@ Kostify adalah aplikasi Flutter untuk manajemen kos berbasis role (admin dan ten
 - ✅ **Tools Utility**:
   - Konverter mata uang real-time (ExchangeRate-API)
   - Penampil zona waktu berbagai negara
-- ✅ **Fitur Mini Game**: Flappy Bird dengan kontrol tap dan gyroscope sensor
+- ✅ **Fitur Mini Game**: Flappy Kos dengan kontrol tap dan gyroscope sensor
 - ✅ **Change Password**: Ubah password akun
 
 ### Fitur Chat & Support
 
 - ✅ **AI Chat Assistant**: Integrasi Google Gemini untuk Q&A
 - ✅ **Admin Chat Interface**: Admin dapat berkomunikasi dengan tenant (preparatory)
-- ✅ **Saran & Kesan**: Feedback dari tenant ke admin
+- ✅ **Saran & Kesan**: Feedback dari developer terhadap mata kuliah Teknologi Pemrograman Mobile
 
 ### Fitur Emergency & Monitoring
 
