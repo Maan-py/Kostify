@@ -12,14 +12,13 @@ class SaranKesanScreen extends StatefulWidget {
 class _SaranKesanScreenState extends State<SaranKesanScreen> {
   // Data hardcoded mata kuliah TPM
   static const _mataKuliah = 'Teknologi Pemrograman Mobile (TPM)';
-  static const _dosen =
-      'Bagus Muhammad Akbar, S.ST., M.Kom'; 
+  static const _dosen = 'Bagus Muhammad Akbar, S.ST., M.Kom';
   static const _semester = 'Semester Genap 2025/2026';
 
   static const _kesanStatis =
-      'Mata kuliah TPM ini kriterianya turun tidak terkira. Materi yang diberikan di teori banyak, tapi projek akhirnya lebih banyak lagi😭, saya pergi healing masih bawa laptop untuk mengerjakan TPM. Tetapi dari mengerjakan projek ini, kami jadi punya portofolio😁';
+      'Mata kuliah TPM ini kriterianya turun tidak terkira. Materi yang diberikan di teori banyak, tapi projek akhirnya lebih banyak lagi😭, saya pergi healing masih bawa laptop untuk mengerjakan TPM 😭. Tetapi dari mengerjakan projek ini, kami jadi punya portofolio😁';
   static const _saranStatis =
-      'Tolong tugasnya jangan terlalu diinikan pak🙏 sama deadlinenya tolong diperpanjang juga pak😭 (tidur pun tak tenang)';
+      'Selama proses pembelajaran, menurut kami materi yang disampaikan antara teori dan praktikum kurang sinkron, sehingga kriteria untuk projek akhir yang seharusnya dipelajari di praktikum tertinggal dari yang di teori. Kami berharap untuk kedepannya materi yang disampaikan di teori dan praktikum bisa lebih sinkron agar mahasiswa bisa lebih siap dalam mengerjakan projek akhirnya. Terima kasih 🙏';
 
   @override
   Widget build(BuildContext context) {
