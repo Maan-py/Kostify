@@ -1,0 +1,1596 @@
+================================================================================
+                        KOSTIFY - DOKUMENTASI CODEBASE LENGKAP
+                Panduan Memahami Alur Code, Data Flow, dan Setiap Fitur
+================================================================================
+
+📚 STRUKTUR DOKUMENTASI:
+  1. OVERVIEW PROJECT
+  2. STRUKTUR FOLDER & FILES
+  3. FITUR-FITUR UTAMA (dengan alur detail)
+  4. DATA MODELS
+  5. ALUR PEMBAYARAN MIDTRANS
+  6. ALUR OCR KTP SCANNER
+  7. DATABASE SCHEMA
+  8. API INTEGRATIONS
+  9. QUICK REFERENCE
+
+================================================================================
+1. OVERVIEW PROJECT KOSTIFY
+================================================================================
+
+Kostify adalah aplikasi Flutter untuk manajemen kos dengan fitur:
+  • Authentikasi pengguna (Tenant & Admin)
+  • Manajemen pembayaran (integrasi Midtrans)
+  • Scan KTP otomatis dengan OCR (Google ML Kit)
+  • Chat AI assistant (Gemini)
+  • Emergency alert system (Telegram)
+  • Payment reminder (WhatsApp)
+  • Mapping lokasi kos
+  • Broadcast pengumuman
+  • Dashboard real-time
+
+Tech Stack:
+  • Frontend: Flutter (Dart)
+  • Database: SQLite (Local)
+  • Backend: REST API
+  • Payment Gateway: Midtrans Snap
+  • OCR: Google ML Kit Text Recognition
+  • AI: Google Gemini
+  • State Management: GetX
+  • HTTP Client: http package
+
+================================================================================
+2. STRUKTUR FOLDER & FILES PENTING
+================================================================================
+
+📁 kostify_full/
+├── 📁 lib/
+│   ├── main.dart                          # Entry point aplikasi
+│   │
+│   ├── 📁 models/                         # Data models
+│   │   ├── user_model.dart                # UserModel (Tenant/Admin)
+│   │   ├── payment_model.dart             # PaymentModel + PaymentStatus enum
+│   │   ├── broadcast_model.dart           # BroadcastModel
+│   │   └── emergency_log_model.dart       # EmergencyLogModel
+│   │
+│   ├── 📁 controllers/                    # State management (GetX)
+│   │   ├── auth_controller.dart           # Handle login/logout
+│   │   └── tenant_controller.dart         # Manage tenant state
+│   │
+│   ├── 📁 services/                       # Business logic & external APIs
+│   │   ├── api_service.dart               # ⭐ Semua API calls (Midtrans, Gemini, Telegram, dll)
+│   │   ├── database_helper.dart           # ⭐ SQLite database operations
+│   │   ├── connectivity_service.dart      # Check internet connection
+│   │   ├── notification_service.dart      # Push notifications
+│   │   ├── chat_context_service.dart      # Chat context for Gemini
+│   │   └── sensor_service.dart            # Sensor data (accelerometer)
+│   │
+│   ├── 📁 views/                          # UI Screens
+│   │   ├── 📁 auth/
+│   │   │   └── login_screen.dart          # Login page
+│   │   │
+│   │   ├── 📁 tenant/
+│   │   │   ├── tenant_dashboard_screen.dart    # ⭐ Dashboard tenant (payment list)
+│   │   │   ├── tenant_map_screen.dart         # Map lokasi kos
+│   │   │   ├── tenant_broadcast_screen.dart   # Lihat broadcast
+│   │   │   ├── tools_screen.dart             # Tools & utilities
+│   │   │   └── change_password_screen.dart    # Change password
+│   │   │
+│   │   ├── 📁 admin/
+│   │   │   ├── admin_dashboard_screen.dart    # Dashboard admin
+│   │   │   ├── add_tenant_screen.dart         # ⭐ Add tenant (dengan OCR)
+│   │   │   ├── tenant_detail_screen.dart      # ⭐ Detail tenant & payments
+│   │   │   ├── ktp_camera_capture_screen.dart # Camera capture KTP
+│   │   │   ├── tenant_list_screen.dart        # List semua tenant
+│   │   │   ├── admin_broadcast_screen.dart    # Send broadcast
+│   │   │   └── admin_chat_screen.dart         # Chat dengan Gemini
+│   │   │
+│   │   ├── 📁 shared/
+│   │   │   ├── saran_kesan_screen.dart        # Feedback form
+│   │   │   └── dashboard_timezone_card.dart   # Timezone widget
+│   │
+│   ├── 📁 utils/
+│   │   ├── constants.dart                 # API keys, URLs, app constants
+│   │   ├── validators.dart               # Input validation & formatting
+│   │   └── app_colors.dart               # Color palette
+│   │
+│   └── pubspec.yaml                      # Dependencies
+
+┌─────────────────────────────────────────┐
+│ ⭐ = File penting untuk dipelajari dulu │
+└─────────────────────────────────────────┘
+
+================================================================================
+3. FITUR-FITUR UTAMA (DENGAN ALUR DETAIL)
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITUR 1: AUTHENTICATION (Login/Logout)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File yang terlibat:
+  • views/auth/login_screen.dart           (UI - form login)
+  • controllers/auth_controller.dart       (State management)
+  • services/database_helper.dart          (Query user dari database)
+  • models/user_model.dart                 (Data structure)
+
+ALUR LOGIN:
+──────────
+  1. User input username & password di login_screen.dart
+  
+  2. Click "Login" button
+     └─→ Call: _loginUser() function
+  
+  3. _loginUser() melakukan:
+     • Validasi input (username & password tidak kosong)
+     • Show loading dialog
+     • Call: auth_controller.login(username, password)
+  
+  4. AuthController.login() melakukan:
+     • Query database via: DatabaseHelper.getUserByUsername(username)
+     • Verifikasi password (cocok atau tidak)
+     • Jika cocok:
+       └─→ Save user ke SharedPreferences (session)
+       └─→ Get role (tenant/admin) dari UserModel.role
+       └─→ Return true
+     • Jika tidak cocok:
+       └─→ Return false dengan error message
+  
+  5. Jika login berhasil:
+     • Close loading dialog
+     • Navigate ke dashboard sesuai role:
+       ├─ role == 'tenant'  → tenant_dashboard_screen.dart
+       └─ role == 'admin'   → admin_dashboard_screen.dart
+  
+  6. Jika login gagal:
+     • Show SnackBar dengan error message
+     • User tetap di login screen
+
+DATA FLOW:
+──────────
+  UI Form Input (username, password)
+    ↓
+  AuthController.login()
+    ↓
+  DatabaseHelper.getUserByUsername()
+    ↓
+  Query SQLite: SELECT * FROM users WHERE username = ?
+    ↓
+  UserModel returned (if exists)
+    ↓
+  Password verification
+    ↓
+  Save session → SharedPreferences
+    ↓
+  Navigator.pushReplacementNamed() to dashboard
+
+ERROR HANDLING:
+───────────────
+  ❌ User tidak ditemukan → "Username atau password salah"
+  ❌ Password tidak cocok → "Username atau password salah"
+  ❌ Input kosong → "Username dan password tidak boleh kosong"
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITUR 2: PEMBAYARAN MIDTRANS (⭐ SANGAT PENTING)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File yang terlibat:
+  • views/tenant/tenant_dashboard_screen.dart  (UI - tampil payment list & tombol bayar)
+  • views/admin/tenant_detail_screen.dart      (Admin melihat payment tenant)
+  • services/api_service.dart                  (⭐ Semua call ke Midtrans)
+  • services/database_helper.dart              (Save/update payment di DB)
+  • models/payment_model.dart                  (PaymentModel & PaymentStatus enum)
+  • utils/constants.dart                       (MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY)
+
+ENUM PaymentStatus:
+───────────────────
+  enum PaymentStatus {
+    paid,      // ✓ Sudah dibayar
+    pending,   // ⏳ Belum dibayar
+    overdue    // ⚠️ Terlambat
+  }
+
+MODEL PaymentModel:
+───────────────────
+  class PaymentModel {
+    id?: int                    // Primary key
+    userId: int                 // Foreign key ke users table
+    amount: int                 // Jumlah dalam Rupiah
+    status: PaymentStatus       // paid/pending/overdue
+    bulan: string (yyyy-MM)     // Format: "2025-06" untuk Juni 2025
+    createdAt: DateTime?        // Tanggal tagihan dibuat
+    paidAt: DateTime?           // Tanggal pembayaran masuk
+    keterangan: string?         // Catatan (misal: "Sewa bulan Juni 2025")
+    orderId: string?            // ⭐ Midtrans order ID (ORDER-userId-timestamp)
+    snapUrl: string?            // ⭐ Midtrans Snap redirect URL
+  }
+
+ALUR PEMBAYARAN (TENANT MEMBAYAR):
+───────────────────────────────────
+
+STEP 1: TENANT MELIHAT DASHBOARD
+┌──────────────────────────────┐
+│ TenantDashboardScreen        │
+│ ├─ initState()               │
+│ │  └─→ _loadPayments()       │
+│ │      └─→ Query: SELECT * FROM payments WHERE user_id = ?
+│ │          └─→ List<PaymentModel> returned
+│ │
+│ ├─ build()
+│ │  └─→ Display payment card untuk setiap payment yang status == pending
+│ │      └─→ Show: bulan, amount, tombol "Bayar Sekarang"
+│ │
+│ └─ Tenant lihat pending payment
+│    └─→ Misal: "Bulan Juni 2025 - Rp 500.000" dengan status PENDING
+└──────────────────────────────┘
+
+STEP 2: TENANT CLICK TOMBOL "BAYAR SEKARANG"
+┌──────────────────────────────┐
+│ _onPaymentButtonTap()        │
+│ ├─ Get payment dari UI
+│ ├─ Get current user dari database
+│ ├─ Show loading dialog
+│ │
+│ └─→ Proceed to STEP 3
+└──────────────────────────────┘
+
+STEP 3: GENERATE ORDER ID & PANGGIL MIDTRANS API
+┌──────────────────────────────┐
+│ ApiService.getMidtransSnapUrl()
+│
+│ PARAMETER INPUT:
+│ ├─ orderId: "ORDER-123-1715000000000"
+│ ├─ amount: 500000
+│ └─ customerName: "John Doe"
+│
+│ LOGIC INSIDE:
+│ ├─ Check internet connection
+│ │  ├─ If no internet → Return error
+│ │  └─ If connected → Continue
+│ │
+│ ├─ Validate Midtrans credentials dari constants.dart
+│ │  ├─ MIDTRANS_SERVER_KEY must exist
+│ │  ├─ MIDTRANS_CLIENT_KEY must exist
+│ │  └─ If not → Return error
+│ │
+│ ├─ Encode server key ke Base64
+│ │  └─ "MIDTRANS_SERVER_KEY:" → Base64
+│ │  └─ Format: "Authorization: Basic {base64_encoded}"
+│ │
+│ ├─ Build HTTP request payload:
+│ │  {
+│ │    "transaction_details": {
+│ │      "order_id": "ORDER-123-1715000000000",
+│ │      "gross_amount": 500000
+│ │    },
+│ │    "customer_details": {
+│ │      "first_name": "John Doe",
+│ │      "email": "kostify-tenant@kos.local",
+│ │      "phone": "62812345678"
+│ │    },
+│ │    "callbacks": {
+│ │      "finish": "https://app.example.com/payment-finish"
+│ │    }
+│ │  }
+│ │
+│ └─ HTTP POST to Midtrans
+│    ├─ URL: https://api.sandbox.midtrans.com/v2/transactions
+│    ├─ Headers: 
+│    │   ├─ Authorization: Basic {encoded_key}
+│    │   └─ Content-Type: application/json
+│    ├─ Body: JSON payload di atas
+│    ├─ Timeout: 30 seconds
+│    │
+│    └─ RESPONSE dari Midtrans:
+│       ├─ Status 201 (Created): SUKSES
+│       │  └─→ Response: {
+│       │      "redirect_url": "https://app.midtrans.com/snap/v1/XXX",
+│       │      "token": "token_snap_1234567890",
+│       │      "expiry": 1715086400
+│       │    }
+│       │  └─→ Return MidtransResult.success(redirect_url)
+│       │
+│       ├─ Status 401 (Unauthorized): GAGAL
+│       │  └─→ Credentials invalid
+│       │  └─→ Return MidtransResult.error("Kredensial tidak valid")
+│       │
+│       ├─ Status 400 (Bad Request): GAGAL
+│       │  └─→ Parameter validation error dari Midtrans
+│       │  └─→ Return MidtransResult.error(validation_message)
+│       │
+│       └─ Other errors: GAGAL
+│          └─→ Return MidtransResult.error(error_message)
+└──────────────────────────────┘
+
+STEP 4: UPDATE DATABASE & BUKA BROWSER
+┌──────────────────────────────┐
+│ Kembali ke TenantDashboardScreen
+│
+│ Jika getMidtransSnapUrl() berhasil:
+│ ├─ Close loading dialog
+│ │
+│ ├─ Update payment di database
+│ │  └─→ updatePaymentRecord(payment.copyWith(
+│ │      orderId: "ORDER-123-1715000000000",
+│ │      snapUrl: "https://app.midtrans.com/snap/v1/XXX"
+│ │    ))
+│ │  └─→ Saved ke SQLite: UPDATE payments SET order_id=?, snap_url=? WHERE id=?
+│ │
+│ ├─ Open browser dengan snap URL
+│ │  └─→ launchUrl(Uri.parse(snapUrl), mode: LaunchMode.externalApplication)
+│ │  └─→ Browser langsung buka Midtrans Snap payment page
+│ │
+│ └─ User lihat Midtrans Snap (payment gateway)
+│    ├─ Show payment methods: Card, eWallet, Bank Transfer, dll
+│    ├─ Show order details (amount, order_id)
+│    └─ User bisa input detail pembayaran
+│
+│ Jika getMidtransSnapUrl() gagal:
+│ ├─ Close loading dialog
+│ ├─ Show SnackBar dengan error message
+│ └─ User bisa retry atau hubungi admin
+└──────────────────────────────┘
+
+STEP 5: USER MEMBAYAR DI MIDTRANS
+┌──────────────────────────────┐
+│ Midtrans Snap Payment Gateway
+│
+│ User action di browser Midtrans:
+│ ├─ Select payment method (e.g., Credit Card)
+│ ├─ Enter payment details (e.g., card number, CVV)
+│ ├─ Midtrans process payment dengan bank/payment provider
+│ │  ├─ Fraud detection
+│ │  ├─ 3D Secure verification (jika diperlukan)
+│ │  └─ Card validation
+│ ├─ Payment success/failed
+│ └─ Browser redirect ke finish page
+│    └─→ Display: "Pembayaran berhasil" atau "Pembayaran gagal"
+└──────────────────────────────┘
+
+STEP 6: SYNC PAYMENT STATUS (ASYNCHRONOUS)
+┌──────────────────────────────┐
+│ Sometime later (bisa manual atau auto)
+│
+│ _syncMidtransPayments() dipanggil:
+│ ├─ Loop melalui semua pending payments di database
+│ │  └─→ SELECT * FROM payments WHERE status = 'pending'
+│ │
+│ ├─ For each pending payment:
+│ │  └─→ Call: checkMidtransTransactionStatus(orderId)
+│ │      │
+│ │      └─→ ApiService.checkMidtransTransactionStatus(orderId)
+│ │          │
+│ │          ├─ HTTP GET request ke Midtrans
+│ │          │  ├─ URL: https://api.sandbox.midtrans.com/v2/{orderId}/status
+│ │          │  ├─ Headers: Authorization: Basic {encoded_key}
+│ │          │  └─ Timeout: 30 seconds
+│ │          │
+│ │          └─ RESPONSE dari Midtrans:
+│ │             ├─ Status 200/201: OK
+│ │             │  └─→ Response JSON contains: {
+│ │             │      "transaction_status": "settlement",  ← Status pembayaran
+│ │             │      "order_id": "ORDER-123-1715000000000",
+│ │             │      "gross_amount": 500000,
+│ │             │      "payment_type": "credit_card",
+│ │             │      "transaction_time": "2025-05-05 10:30:00",
+│ │             │      "status_code": "200"
+│ │             │    }
+│ │             │
+│ │             │  Possible transaction_status values:
+│ │             │  ├─ "settlement"   → PEMBAYARAN SUKSES (dana diterima)
+│ │             │  ├─ "capture"      → PEMBAYARAN SUKSES (untuk kartu kredit)
+│ │             │  ├─ "pending"      → Menunggu konfirmasi
+│ │             │  ├─ "cancel"       → Pembayaran dibatalkan
+│ │             │  ├─ "deny"         → Pembayaran ditolak
+│ │             │  ├─ "expire"       → Pembayaran expired
+│ │             │  └─ "failure"      → Pembayaran gagal
+│ │             │
+│ │             └─ If status is "settlement" or "capture":
+│ │                 └─→ UPDATE payment di database
+│ │                     └─→ UPDATE payments SET 
+│ │                         status = 'paid',
+│ │                         paid_at = NOW()
+│ │                         WHERE id = ?
+│ │
+│ ├─ Refresh UI untuk show updated status
+│ └─→ Tenant akan lihat: "✓ Lunas" (Paid) dengan checkmark
+│    atau Admin akan lihat status payment berubah ke PAID
+└──────────────────────────────┘
+
+DATA FLOW DIAGRAM:
+──────────────────
+  Tenant Dashboard UI
+    ↓
+  Click "Bayar" button
+    ↓
+  Load payment from database (SQLite)
+    ↓
+  ApiService.getMidtransSnapUrl(orderId, amount, name)
+    ↓
+  HTTP POST to Midtrans API (/v2/transactions)
+    ↓
+  Midtrans returns: {redirect_url, token}
+    ↓
+  Save to database: UPDATE payments SET order_id, snap_url
+    ↓
+  Open browser: launchUrl(redirect_url)
+    ↓
+  User fills payment in Snap gateway
+    ↓
+  Midtrans process payment
+    ↓
+  Payment success/failed
+    ↓
+  App checks status: checkMidtransTransactionStatus(orderId)
+    ↓
+  HTTP GET /v2/{orderId}/status
+    ↓
+  If status = settlement/capture:
+    └─→ UPDATE payment SET status = 'paid'
+    └─→ UI shows checkmark ✓
+
+FILE LOCATIONS:
+───────────────
+  Payment logic:
+  ├─ lib/services/api_service.dart
+  │  ├─ getMidtransSnapUrl() → Line ~269
+  │  └─ checkMidtransTransactionStatus() → Line ~360
+  │
+  ├─ lib/services/database_helper.dart
+  │  ├─ createPayment()
+  │  ├─ updatePaymentStatus()
+  │  ├─ updatePaymentRecord()
+  │  └─ getPaymentsByUser()
+  │
+  ├─ lib/models/payment_model.dart
+  │  ├─ PaymentModel class
+  │  └─ PaymentStatus enum
+  │
+  ├─ lib/views/tenant/tenant_dashboard_screen.dart
+  │  ├─ _initiateMidtransPayment() → Line ~760
+  │  └─ _syncMidtransPayments() → Line ~50
+  │
+  └─ lib/views/admin/tenant_detail_screen.dart
+     ├─ _syncMidtransPayments() → Line ~40
+     └─ _markPaid() → Manual payment marking
+    |                    |<--- MidtransResult.success() --------|                |                    |
+    |                    |<--- (redirectUrl, orderId) ---------|                |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |--- Close Loading Dialog ---|         |                 |                    |
+    |                    |<--- Dialog Closed -------|           |                 |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |--- Update Payment Record ----------->|                 |                    |
+    |                    |    (orderId, snapUrl, timestamp)     |                 |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |<--- Payment Updated --------------|                  |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |--- launchUrl(snapUrl) ---------------------------------------->|
+    |                    |                  |                 |                 |                    |
+    |<-- External Browser Opens ------------|                 |                 |    |                |
+    |    Midtrans Snap Payment Gateway                         |                 |    |                |
+    |                                                          |                 |    |                |
+    |--- Fill Payment Details (Card/eWallet/Bank Transfer) ---|                 |    |                |
+    |    [Amount: Rp X, Order ID: ORDER-xxx, etc]            |                 |    |                |
+    |                                                          |                 |    |                |
+    |--- Click Confirm Payment ---|                           |                 |    |                |
+    |                            |------ HTTP POST (Payment) ------|            |                    |
+    |                            |       {card_data, token, etc}   |            |                    |
+    |                            |                                 |            |                    |
+    |                            |      Process Payment [Bank/Card]|            |                    |
+    |                            |      Fraud Detection, 3D Secure|            |                    |
+    |                            |      (May redirect to 3D Secure)|            |                    |
+    |                            |                                 |            |                    |
+    |                            |      Payment Success/Failed     |            |                    |
+    |                            |<--- HTTP 200 Response ---------|             |                    |
+    |                            |      {status: "success/failed"}  |            |                    |
+    |                            |                                 |            |                    |
+    |--- Redirect to Finish URL                                    |            |                    |
+    |<-- Success/Failure Callback Page Displayed                   |            |                    |
+    |                                                              |            |                    |
+    |--- Later: App Sync Payment Status [Background/Manual] ---|
+    |                    |                  |                 |                 |                    |
+    |                    |--- _syncMidtransPayments() -------->|                 |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |--- For each pending payment:        |                 |                    |
+    |                    |    checkMidtransTransactionStatus() |                 |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |                  |--- HTTP GET ------>|                |                    |
+    |                    |                  |    /v2/{orderId}/status             |                    |
+    |                    |                  |    (Basic Auth)    |                |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |                  |<--- HTTP 200 -----|                |                    |
+    |                    |                  |    {transaction_status: "settlement"|                    |
+    |                    |                  |     OR "capture" OR "pending"}     |                    |
+    |                    |                  |                 |                 |                    |
+    |                    |--- If status == "settlement" OR "capture" ---|       |                    |
+    |                    |    updatePaymentStatus(id, PAID) ---->|             |                    |
+    |                    |                  |                 |<--- Updated ---|                    |
+    |                    |                  |                 |                 |                    |
+    |                    |<--- Payment Status Updated in DB ---|                 |                    |
+    |                    |                  |                 |                 |                    |
+    |--- Refresh Payment Status ---|         |                 |                 |                    |
+    |<-- Payment shown as "Lunas" (Paid) |  |                 |                 |                    |
+
+
+================================================================================
+
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITUR 3: OCR KTP SCANNER (⭐ SANGAT PENTING)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File yang terlibat:
+  • views/admin/add_tenant_screen.dart         (⭐ Main OCR logic)
+  • views/admin/ktp_camera_capture_screen.dart (Camera preview & capture)
+  • services/database_helper.dart              (Save user ke database)
+  • models/user_model.dart                     (UserModel struct)
+  • utils/constants.dart                       (Config)
+
+Library yang digunakan:
+  • google_mlkit_text_recognition v0.13.0      (OCR Engine)
+  • flutter_image_compress                     (Image optimization)
+  • image                                      (Image manipulation)
+  • camera                                     (Camera access)
+  • image_picker                               (Gallery picker)
+
+ALUR OCR KTP SCANNER (ADMIN MENAMBAH TENANT):
+───────────────────────────────────────────────
+
+STEP 1: ADMIN MEMBUKA ADD_TENANT_SCREEN
+┌──────────────────────────────┐
+│ AddTenantScreen (Step 1/3)   │
+│                              │
+│ Showing form: Identitas      │
+│ ├─ Field: Nama Lengkap       │
+│ ├─ Field: NIK (nomor identitas)
+│ ├─ Field: Alamat             │
+│ ├─ Field: Telepon            │
+│ ├─ Button: "Scan KTP" ← CLICK HERE
+│ └─ Button: Lanjut (Next)     │
+└──────────────────────────────┘
+
+STEP 2: SHOW IMAGE SOURCE PICKER
+┌──────────────────────────────┐
+│ _showScanSourcePicker()      │
+│                              │
+│ Show modal bottom sheet:     │
+│ ├─ Option 1: Camera          │
+│ │  └─ "Kamera (dengan frame  │
+│ │     KTP)"                  │
+│ ├─ Option 2: Gallery         │
+│ │  └─ "Galeri"               │
+│ │                            │
+│ Admin pilih: Camera          │
+└──────────────────────────────┘
+
+STEP 3: NAVIGATE TO KTP CAMERA CAPTURE SCREEN
+┌──────────────────────────────┐
+│ KtpCameraCaptureScreen       │
+│                              │
+│ initState():                 │
+│ └─→ _initCamera()            │
+│     │                        │
+│     ├─ availableCameras()    │
+│     │  └─ Get list of cameras on device
+│     │                        │
+│     ├─ Select back camera    │
+│     │  └─ Pick camera dengan lensDirection == back
+│     │                        │
+│     └─ CameraController      │
+│        .initialize()         │
+│        └─ Setup camera with: │
+│           ├─ ResolutionPreset.high
+│           ├─ ImageFormatGroup.jpeg
+│           └─ enableAudio: false
+│                              │
+│ build():                     │
+│ └─→ Display camera preview   │
+│     ├─ Show live preview from camera
+│     ├─ Overlay KTP guide frame (1.58 aspect ratio)
+│     ├─ Button: Ambil Foto    │
+│     └─ Button: Batalkan      │
+│                              │
+│ Admin frame KTP dalam guide  │
+│ box dan click "Ambil Foto"   │
+└──────────────────────────────┘
+
+STEP 4: CAPTURE IMAGE
+┌──────────────────────────────┐
+│ _capture()                   │
+│                              │
+│ ├─ Validasi: controller tidak null
+│ ├─ Validasi: controller initialized
+│ ├─ Validasi: tidak sedang capture
+│ │                            │
+│ └─→ _controller!.takePicture()
+│     └─ Return: XFile dengan image path
+│        └─ Contoh path:       │
+│           /data/user/0/com.example.kostify/cache/photo_1715000000000.jpg
+│                              │
+│ Return to AddTenantScreen    │
+│ with captured image path     │
+└──────────────────────────────┘
+
+STEP 5: COMPRESS IMAGE
+┌──────────────────────────────┐
+│ _scanKTP()                   │
+│ (in AddTenantScreen)         │
+│                              │
+│ setState(() {                │
+│   _isScanning = true;        │
+│   _ocrError = null;          │
+│ });                          │
+│                              │
+│ KOMPRES IMAGE:               │
+│ ├─ Call: FlutterImageCompress
+│    .compressWithFile(        │
+│      capturedPath,           │
+│      quality: 80,  ← 80% JPEG quality
+│      minWidth: 1024,← Minimum width
+│      minHeight: 0, ← 0 = proporsional
+│      rotate: 0,    ← Follow EXIF rotation
+│      keepExif: false ← Strip EXIF metadata
+│    )                         │
+│                              │
+│ KENAPA DIKOMPRESS?           │
+│ • Reduce file size           │
+│ • Faster ML Kit processing   │
+│ • Auto-fix EXIF rotation     │
+│ • Better quality for OCR     │
+│                              │
+│ Result: Uint8List compressed_bytes
+└──────────────────────────────┘
+
+STEP 6: CROP IMAGE TO GUIDE BOX
+┌──────────────────────────────┐
+│ _cropToGuideBox(              │
+│   compressedBytes             │
+│ )                             │
+│                              │
+│ Tujuan: Hanya ambil bagian    │
+│ KTP, buang latar belakang     │
+│                              │
+│ LOGIC:                       │
+│ ├─ Decode image bytes        │
+│ ├─ Calculate target aspect:  │
+│ │  └─ const targetAspect = 1.58 (KTP ratio)
+│ │                            │
+│ ├─ Calculate crop dimensions:│
+│ │  ├─ cropWidth = img.width * 0.88
+│ │  ├─ cropHeight = cropWidth / 1.58
+│ │  │                            │
+│ │  └─ Max height = img.height * 0.72
+│ │     └─ If calculated height > max:
+│ │        └─ Use max height instead
+│ │                            │
+│ ├─ Calculate crop position:  │
+│ │  ├─ x = (img.width - cropWidth) / 2
+│ │  ├─ y = (img.height - cropHeight) / 2
+│ │  └─ Center crop di tengah image
+│ │                            │
+│ ├─ Crop image:               │
+│ │  └─ img.copyCrop(           │
+│ │      source,               │
+│ │      x: x,                 │
+│ │      y: y,                 │
+│ │      width: cropWidth,     │
+│ │      height: cropHeight    │
+│ │    )                       │
+│ │                            │
+│ └─ Encode back to JPEG       │
+│    └─ img.encodeJpg(cropped, quality: 80)
+│                              │
+│ Result: Uint8List cropped_bytes
+└──────────────────────────────┘
+
+STEP 7: SAVE DEBUG IMAGE & SETUP OCR
+┌──────────────────────────────┐
+│ _setDebugImage(croppedBytes) │
+│                              │
+│ ├─ Decode image untuk get size
+│ └─ setState(() {             │
+│      _debugImageBytes = croppedBytes;
+│      _debugImageSize = size; │
+│    })                        │
+│    └─ Save untuk debug visualization later
+│                              │
+│ Write cropped image ke temp file:
+│ ├─ tempPath = '${originalPath}_compressed.jpg'
+│ ├─ File(tempPath).writeAsBytes(croppedBytes)
+│ └─ Need this untuk ML Kit processing
+│                              │
+│ Initialize TextRecognizer:   │
+│ ├─ TextRecognizer(           │
+│ │  script: TextRecognitionScript.latin
+│ │)                           │
+│ └─ Prepare ML Kit engine for OCR
+└──────────────────────────────┘
+
+STEP 8: OPTICAL CHARACTER RECOGNITION (OCR)
+┌──────────────────────────────┐
+│ recognizer.processImage(     │
+│   inputImage                 │
+│ )                            │
+│                              │
+│ ML Kit melakukan:            │
+│                              │
+│ PHASE 1: Text Detection      │
+│ ├─ Scan image untuk cari     │
+│ │  region yang contain text  │
+│ ├─ Identify text bounding    │
+│ │  boxes                     │
+│ └─ Result: Text regions found
+│                              │
+│ PHASE 2: Character Recognition
+│ ├─ Untuk setiap text region:│
+│ │  ├─ Apply neural network  │
+│ │  ├─ Recognize individual  │
+│ │  │  characters            │
+│ │  └─ Build text string     │
+│ │                            │
+│ └─ Result: Recognized text  │
+│                              │
+│ PHASE 3: Bounding Box Calculation
+│ ├─ Untuk setiap line & block:
+│ │  ├─ Calculate position on │
+│ │  │  image (x, y, width,   │
+│ │  │  height)               │
+│ │  └─ Store dalam rect      │
+│ │                            │
+│ └─ Result: Text dengan posisi
+│                              │
+│ Result: RecognizedText object
+│ {                            │
+│   blocks: [                 │
+│     TextBlock {             │
+│       lines: [             │
+│         TextLine {         │
+│           text: "NIK",     │
+│           boundingBox: Rect(...),
+│           elements: [...]  │
+│         },                 │
+│         TextLine {         │
+│           text: "3274095206990001",
+│           boundingBox: Rect(...),
+│           ...              │
+│         }                  │
+│       ]                    │
+│     }                      │
+│   ],                       │
+│   text: "Semua text gabung"│
+│ }                          │
+└──────────────────────────────┘
+
+STEP 9: PARSE OCR RESULT
+┌──────────────────────────────┐
+│ _parseKTPResult(              │
+│   recognizedText             │
+│ )                            │
+│                              │
+│ LOGIC:                       │
+│ ├─ Convert blocks → ocrLines list
+│ │  └─ For each block         │
+│ │     └─ For each line       │
+│ │        └─ Add to ocrLines[]
+│ │           dengan text & bounding box
+│ │                            │
+│ ├─ Sort by vertical position │
+│ │  └─ ocrLines.sort(         │
+│ │      (a, b) =>            │
+│ │      a.rect.top.compareTo(│
+│ │        b.rect.top         │
+│ │      )                    │
+│ │    )                       │
+│ │  └─ Top to bottom order   │
+│ │                            │
+│ ├─ Find field labels:        │
+│ │  ├─ _isNikLabel() checks: │
+│ │  │  "NIK"?                │
+│ │  │  "NIK KTP"?            │
+│ │  │  "nomor NIK"?          │
+│ │  │                        │
+│ │  ├─ _isNamaLabel() checks:│
+│ │  │  "NAMA LENGKAP"?       │
+│ │  │  "NAMA"?               │
+│ │  │                        │
+│ │  └─ _isAlamatLabel() checks:
+│ │     "ALAMAT"?             │
+│ │     "ALAMAT TEMPAT TINGGAL"?
+│ │                            │
+│ │  If found → Save label rect
+│ │                            │
+│ ├─ Extract NIK value:        │
+│ │  ├─ _extractNikByLayout() │
+│ │  │  └─ Find 16-digit number
+│ │  │     near NIK label    │
+│ │  │  └─ Check boundingBox │
+│ │  │     alignment          │
+│ │  │                        │
+│ │  └─ If not found:         │
+│ │     └─ _extractNikFromRawText()
+│ │        └─ Regex search \\d{16}
+│ │           di entire text  │
+│ │                            │
+│ ├─ Extract Nama value:       │
+│ │  └─ _extractSingleValueByAlignment()
+│ │     ├─ Find lines aligned │
+│ │     │  right of nama label│
+│ │     ├─ Get first matching │
+│ │     │  text line          │
+│ │     └─ Return value       │
+│ │                            │
+│ ├─ Extract Alamat (multi-line):
+│ │  └─ _extractAlamatComposite()
+│ │     ├─ Find all lines     │
+│ │     │  below alamat label │
+│ │     ├─ Until hit:         │
+│ │     │  • Next field label │
+│ │     │  • Max address length
+│ │     │  • End of document  │
+│ │     └─ Join with spaces   │
+│ │                            │
+│ └─ Create debug visualization boxes
+│    ├─ White: All text       │
+│    ├─ Blue: NIK label & value
+│    ├─ Purple: Nama label & value
+│    └─ Orange: Alamat label & value
+└──────────────────────────────┘
+
+STEP 10: POPULATE FORM FIELDS
+┌──────────────────────────────┐
+│ setState(() {                │
+│   _nikCtrl.text = extracted_nik;
+│   _namaCtrl.text = extracted_nama;
+│   _alamatCtrl.text = extracted_alamat;
+│   _debugImageBytes = cropped_image;
+│   _debugBoxes = debug_boxes; │
+│ });                          │
+│                              │
+│ Update UI:                   │
+│ ├─ Show form fields dengan  │
+│ │  extracted data auto-filled
+│ ├─ Show debug image dengan  │
+│ │  colored boxes untuk      │
+│ │  visualization            │
+│ └─ Show message: "Data KTP  │
+│    berhasil diambil"        │
+│                              │
+│ Admin dapat:                 │
+│ ├─ Verify data yang extracted
+│ ├─ Manually edit jika ada error
+│ └─ Atau Scan ulang jika kurang bagus
+└──────────────────────────────┘
+
+STEP 11: ADMIN VERIFY & CONTINUE
+┌──────────────────────────────┐
+│ If data looks good:          │
+│ └─→ Click "Lanjut" (Next)   │
+│     ├─ Validate extracted data
+│     ├─ Move to Step 2: Data Kos
+│     │  (Nomor Kamar, Harga Sewa, dll)
+│     └─ Continue with form   │
+│                              │
+│ If data has errors:          │
+│ └─→ Manual edit text fields  │
+│     └─ Click "Lanjut" dengan corrected data
+└──────────────────────────────┘
+
+DATA FLOW OCR:
+───────────────
+  Captured Image (from camera/gallery)
+    ↓
+  FlutterImageCompress (JPEG 80%, auto-fix EXIF)
+    ↓
+  _cropToGuideBox (center crop, 88% width, 72% height)
+    ↓
+  Save temp file for ML Kit
+    ↓
+  TextRecognizer.processImage()
+    ↓
+  ML Kit OCR Processing:
+    ├─ Text Detection
+    ├─ Character Recognition
+    └─ Bounding Box Calculation
+    ↓
+  RecognizedText object returned
+    ↓
+  _parseKTPResult():
+    ├─ Sort lines by vertical position
+    ├─ Find labels (NIK, NAMA, ALAMAT)
+    └─ Extract values by alignment
+    ↓
+  Extracted: {nik, nama, alamat}
+    ↓
+  setState(): Update form fields
+    ↓
+  Display to admin with debug boxes
+    ↓
+  Admin verifies & clicks "Lanjut"
+    ↓
+  Continue to next form step
+
+POSSIBLE ERRORS & HANDLING:
+────────────────────────────
+  ❌ Camera not available
+     └─→ Set _error = "Kamera tidak tersedia"
+     └─→ Show message to user
+  
+  ❌ Permission denied
+     └─→ _error = "Izin kamera belum diberikan"
+     └─→ Ask user to enable permission
+  
+  ❌ Image compression failed
+     └─→ Exception caught
+     └─→ _ocrError = "Gagal memproses gambar"
+     └─→ Suggest retake photo
+  
+  ❌ OCR result empty
+     └─→ recognized.text.trim().isEmpty
+     └─→ _ocrError = "Gambar tidak terbaca. Pastikan KTP jelas..."
+     └─→ Suggest better lighting or retake
+  
+  ❌ Extraction failed
+     └─→ If NIK/Nama/Alamat empty
+     └─→ Fallback to raw text
+     └─→ Or let admin fill manually
+  
+  ❌ File operations failed
+     └─→ Cleanup temp files in catch block
+     └─→ Try-catch untuk delete operations
+
+FILE LOCATIONS OCR:
+───────────────────
+  lib/views/admin/add_tenant_screen.dart
+  ├─ _scanKTP() → Line ~180
+  ├─ _parseKTPResult() → Line ~260
+  ├─ _cropToGuideBox() → Line ~340
+  ├─ _setDebugImage() → Line ~370
+  ├─ _extractNikByLayout() → Line ~400
+  ├─ _extractNikFromRawText() → Line ~450
+  ├─ _extractSingleValueByAlignment() → Line ~480
+  └─ _extractAlamatComposite() → Line ~520
+  
+  lib/views/admin/ktp_camera_capture_screen.dart
+  ├─ initState() → _initCamera()
+  ├─ _initCamera() → Line ~20
+  ├─ _capture() → Line ~70
+  └─ build() → Camera preview
+
+
+================================================================================
+
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITUR 4: FITUR LAINNYA (SINGKAT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4.1 PAYMENT REMINDER (WhatsApp)
+──────────────────────────────
+File: lib/services/api_service.dart → sendPaymentReminder()
+
+Flow:
+  Admin click "Kirim Reminder" di tenant_detail_screen.dart
+    ↓
+  Get pending payment & tenant data
+    ↓
+  Call: ApiService.sendPaymentReminder(nomorHP, tenantName, bulan, amount)
+    ↓
+  Format phone number (0xxx → 62xxx)
+    ↓
+  Format message: "Halo {nama}, pengingat pembayaran bulan {bulan} Rp {amount}"
+    ↓
+  Build WhatsApp URL: https://wa.me/{phone}?text={encoded_message}
+    ↓
+  launchUrl() → Open WhatsApp app
+    ↓
+  User sends message di WhatsApp
+
+Data Flow:
+  UI → AdminServiceDatabase → ApiService → WhatsApp URL → Device WhatsApp app
+
+================================================================================
+
+4.2 EMERGENCY ALERT (Telegram)
+──────────────────────────────
+File: lib/services/api_service.dart → sendTelegramAlert()
+
+Flow:
+  Tenant click tombol Emergency SOS
+    ↓
+  Get tenant name, room number, timestamp
+    ↓
+  Call: ApiService.sendTelegramAlert(name, roomNumber, timestamp)
+    ↓
+  Format Telegram message dengan emoji & markdown
+    ↓
+  HTTP POST to Telegram Bot API
+    ↓
+  URL: https://api.telegram.org/bot{TOKEN}/sendMessage
+    ↓
+  Send to admin group chat
+    ↓
+  Admin receive alert immediately
+
+Data Flow:
+  UI → Services → HTTP POST Telegram → Telegram Bot → Admin Chat
+
+================================================================================
+
+4.3 CHAT AI (Gemini)
+────────────────────
+File: lib/services/api_service.dart → sendToGemini()
+
+Flow:
+  Admin/Tenant send message di chat screen
+    ↓
+  Call: ApiService.sendToGemini(message, chatHistory?, systemContext?)
+    ↓
+  Validate internet & API key
+    ↓
+  Build request:
+    ├─ System context (untuk set persona sebagai KosBot)
+    ├─ Previous chat history (last 10 messages)
+    └─ New user message
+    ↓
+  HTTP POST to Google Gemini API
+    ↓
+  URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+    ↓
+  Gemini process & return response
+    ↓
+  Parse response → Extract text
+    ↓
+  Display di chat bubble
+
+Data Flow:
+  UI → Services → HTTP POST Gemini → LLM → Response → UI
+
+================================================================================
+
+4.4 BROADCAST ANNOUNCEMENTS
+────────────────────────────
+File: 
+  • lib/views/admin/admin_broadcast_screen.dart (Send)
+  • lib/views/tenant/tenant_broadcast_screen.dart (View)
+  • lib/models/broadcast_model.dart
+
+Flow:
+  Admin write broadcast message
+    ↓
+  Click "Kirim"
+    ↓
+  Save to database: INSERT INTO broadcasts
+    ↓
+  Trigger notification to all tenant devices
+    ↓
+  Tenant see notification & can view in broadcast screen
+    ↓
+  Display: sender, timestamp, message
+
+Data Flow:
+  UI → Database → Notification Service → Tenant Devices
+
+================================================================================
+
+4.5 TENANT MANAGEMENT (Admin)
+──────────────────────────────
+Files:
+  • lib/views/admin/add_tenant_screen.dart (Add with OCR)
+  • lib/views/admin/tenant_detail_screen.dart (View/Edit)
+  • lib/views/admin/tenant_list_screen.dart (List all)
+
+Multi-step form:
+  Step 1: Identitas (with OCR KTP)
+    ├─ Nama Lengkap
+    ├─ NIK (auto-filled from OCR)
+    ├─ Alamat (auto-filled from OCR)
+    └─ Telepon
+  
+  Step 2: Data Kos
+    ├─ Nomor Kamar (dropdown)
+    ├─ Harga Sewa
+    └─ Tanggal Masuk
+  
+  Step 3: Akun Login
+    ├─ Username
+    ├─ Password
+    └─ Confirm Password
+    ↓
+  Save to database: INSERT INTO users
+
+================================================================================
+
+4.6 TENANT DASHBOARD
+─────────────────────
+File: lib/views/tenant/tenant_dashboard_screen.dart
+
+Display:
+  ├─ Kos info card (dengan lokasi, admin contact)
+  ├─ Payment cards (upcoming bills, paid, overdue)
+  ├─ Quick actions
+  │  ├─ Bayar Sekarang
+  │  ├─ Chat dengan admin
+  │  └─ Emergency SOS
+  ├─ Recent activity
+  └─ Utilities (tools, navigation, etc)
+
+Data loaded from:
+  • Database: users, payments, broadcasts
+  • API: Exchange rates, weather (optional)
+
+================================================================================
+
+4.7 ADMIN DASHBOARD
+────────────────────
+File: lib/views/admin/admin_dashboard_screen.dart
+
+Display:
+  ├─ Overview stats
+  │  ├─ Total tenants
+  │  ├─ Total income
+  │  ├─ Paid/Pending/Overdue payments
+  │  └─ Occupancy rate
+  ├─ Recent payments
+  ├─ Recent alerts
+  └─ Quick actions
+
+Data loaded from:
+  • Database: Query aggregated data from payments & users
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. DATA MODELS (STRUCTURE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 UserModel (lib/models/user_model.dart)
+──────────────────────────────────────────
+class UserModel {
+  int? id;                      // Primary key
+  String username;              // Unique login username
+  String password;              // Hashed password
+  String? namaLengkap;          // Full name (extracted from KTP)
+  String? nik;                  // ID number (extracted from KTP)
+  String? alamat;               // Address (extracted from KTP)
+  String? telepon;              // Phone number
+  String? nomorKamar;           // Room number
+  int? hargaSewa;               // Monthly rent (in Rupiah)
+  String? tanggalMasuk;         // Date moved in (yyyy-MM-dd)
+  String role;                  // 'tenant' atau 'admin'
+  DateTime? createdAt;          // Account creation date
+  DateTime? updatedAt;          // Last update
+
+  Methods:
+  + toMap() → Map<String, dynamic>  (for database)
+  + fromMap(Map) → UserModel        (from database)
+  + copyWith() → UserModel          (create copy with updates)
+}
+
+📋 PaymentModel (lib/models/payment_model.dart)
+────────────────────────────────────────────────
+class PaymentModel {
+  int? id;                      // Primary key
+  int userId;                   // Foreign key → users.id
+  int amount;                   // Amount in Rupiah
+  PaymentStatus status;         // paid/pending/overdue
+  String bulan;                 // Format: "2025-06" (year-month)
+  DateTime? createdAt;          // Bill creation date
+  DateTime? paidAt;             // Payment received date
+  String? keterangan;           // Notes/description
+  String? orderId;              // Midtrans order ID (auto-generated)
+  String? snapUrl;              // Midtrans Snap redirect URL
+}
+
+enum PaymentStatus {
+  paid,                         // ✓ Paid
+  pending,                      // ⏳ Waiting for payment
+  overdue                       // ⚠️ Late payment
+}
+
+📋 BroadcastModel (lib/models/broadcast_model.dart)
+──────────────────────────────────────────────────
+class BroadcastModel {
+  int? id;                      // Primary key
+  String title;                 // Broadcast title
+  String message;               // Broadcast content
+  String senderName;            // Admin name
+  DateTime createdAt;           // Sent date/time
+}
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. DATABASE SCHEMA (SQLite)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File: lib/services/database_helper.dart
+
+TABLE: users
+─────────────
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  nama_lengkap TEXT,
+  nik TEXT UNIQUE,
+  alamat TEXT,
+  telepon TEXT,
+  nomor_kamar TEXT,
+  harga_sewa INTEGER,
+  tanggal_masuk TEXT,
+  role TEXT DEFAULT 'tenant',     -- 'tenant' atau 'admin'
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+TABLE: payments
+────────────────
+CREATE TABLE payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL,
+  status TEXT DEFAULT 'pending',  -- 'pending', 'paid', 'overdue'
+  bulan TEXT NOT NULL,            -- Format: "2025-06"
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  paid_at TIMESTAMP,
+  keterangan TEXT,
+  order_id TEXT,                  -- Midtrans order ID
+  snap_url TEXT,                  -- Midtrans Snap URL
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE(user_id, bulan)          -- One payment per tenant per month
+);
+
+TABLE: broadcasts
+──────────────────
+CREATE TABLE broadcasts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  sender_name TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+TABLE: emergency_logs
+───────────────────────
+CREATE TABLE emergency_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  status TEXT,                   -- SOS status
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+INDICES untuk fast queries:
+──────────────────────────
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_payments_user_id ON payments(user_id);
+CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX idx_payments_bulan ON payments(bulan);
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. API INTEGRATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All API calls di: lib/services/api_service.dart
+
+🔗 Midtrans Payment Gateway
+────────────────────────────
+Base URL: https://api.sandbox.midtrans.com (Sandbox mode)
+
+Endpoints:
+1. Create Snap Transaction
+   ├─ Method: POST
+   ├─ Path: /v2/transactions
+   ├─ Auth: Basic Auth (ServerKey:)
+   ├─ Request Body:
+   │  {
+   │    "transaction_details": {
+   │      "order_id": "ORDER-123-1715000000000",
+   │      "gross_amount": 500000
+   │    },
+   │    "customer_details": {
+   │      "first_name": "John Doe",
+   │      "email": "email@example.com",
+   │      "phone": "62812345678"
+   │    },
+   │    "callbacks": {
+   │      "finish": "https://app.example.com/payment-finish"
+   │    }
+   │  }
+   └─ Response: { redirect_url, token, expiry }
+
+2. Check Transaction Status
+   ├─ Method: GET
+   ├─ Path: /v2/{orderId}/status
+   ├─ Auth: Basic Auth (ServerKey:)
+   └─ Response: { transaction_status, order_id, amount, payment_type }
+
+Possible transaction_status:
+  • settlement / capture → Payment SUCCESS
+  • pending → Waiting for confirmation
+  • cancel / deny → Payment CANCELLED/DENIED
+  • expire → Payment expired
+  • failure → Payment FAILED
+
+Credentials (from .env):
+  • MIDTRANS_SERVER_KEY: Get from https://dashboard.sandbox.midtrans.com
+  • MIDTRANS_CLIENT_KEY: Get from dashboard above
+
+🤖 Google ML Kit Text Recognition
+───────────────────────────────────
+Library: google_mlkit_text_recognition v0.13.0
+
+Function:
+  TextRecognizer recognizer = TextRecognizer(
+    script: TextRecognitionScript.latin
+  );
+  
+  RecognizedText result = await recognizer.processImage(inputImage);
+  // result contains: blocks[], lines[], text
+
+📱 Google Gemini AI
+───────────────────
+Base URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro
+
+Endpoint: generateContent
+  ├─ Method: POST
+  ├─ Path: :generateContent?key={API_KEY}
+  ├─ Request Body:
+  │  {
+  │    "contents": [
+  │      {
+  │        "role": "user",
+  │        "parts": [{"text": "message"}]
+  │      }
+  │    ],
+  │    "generationConfig": {
+  │      "maxOutputTokens": 1024,
+  │      "temperature": 0.7
+  │    }
+  │  }
+  └─ Response: { candidates[0].content.parts[0].text }
+
+Credentials: GEMINI_API_KEY (from .env)
+
+🤖 Telegram Bot API
+──────────────────
+Base URL: https://api.telegram.org/bot{TOKEN}
+
+Endpoint: sendMessage
+  ├─ Method: POST
+  ├─ Path: /sendMessage
+  ├─ Request Body:
+  │  {
+  │    "chat_id": "CHAT_ID",
+  │    "text": "Alert message",
+  │    "parse_mode": "Markdown"
+  │  }
+  └─ Response: { ok: true, result: {...} }
+
+Credentials:
+  • TELEGRAM_BOT_TOKEN: From @BotFather
+  • TELEGRAM_CHAT_ID: Target group/channel ID
+
+💱 Exchange Rate API
+────────────────────
+Base URL: https://v6.exchangerate-api.com/v6/{API_KEY}
+
+Endpoint: /latest/{baseCurrency}
+  ├─ Method: GET
+  ├─ Response: { conversion_rates: { USD: 1.05, EUR: 0.95, ... } }
+
+Credentials: EXCHANGE_RATE_API_KEY (from .env)
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. QUICK REFERENCE - FILE LOCATIONS & FUNCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 PAYMENT FEATURES
+────────────────────
+Payment listing:
+  • lib/views/tenant/tenant_dashboard_screen.dart
+    └─ _loadPayments() @ Line ~50
+    └─ _initiateMidtransPayment() @ Line ~760
+    └─ _syncMidtransPayments() @ Line ~820
+
+Payment creation:
+  • lib/views/admin/tenant_detail_screen.dart
+    └─ _addPayment() @ Line ~130
+
+Payment update:
+  • lib/services/database_helper.dart
+    └─ updatePaymentStatus() @ Line ~250
+    └─ updatePaymentRecord() @ Line ~260
+
+API calls:
+  • lib/services/api_service.dart
+    └─ getMidtransSnapUrl() @ Line ~269
+    └─ checkMidtransTransactionStatus() @ Line ~360
+
+🔍 OCR FEATURES
+─────────────────
+Scan KTP:
+  • lib/views/admin/add_tenant_screen.dart
+    └─ _scanKTP() @ Line ~180
+    └─ _parseKTPResult() @ Line ~260
+    └─ _cropToGuideBox() @ Line ~340
+    └─ _extractNikByLayout() @ Line ~400
+    └─ _extractSingleValueByAlignment() @ Line ~480
+    └─ _extractAlamatComposite() @ Line ~520
+
+Camera:
+  • lib/views/admin/ktp_camera_capture_screen.dart
+    └─ _initCamera() @ Line ~20
+    └─ _capture() @ Line ~70
+
+🔍 USER MANAGEMENT
+────────────────────
+Authentication:
+  • lib/services/database_helper.dart
+    └─ getUserByUsername() @ Line ~80
+    └─ createUser() @ Line ~120
+
+Tenant operations:
+  • lib/views/admin/add_tenant_screen.dart
+    └─ Add new tenant (multi-step form)
+
+  • lib/views/admin/tenant_detail_screen.dart
+    └─ View tenant payments
+    └─ Mark payment as paid
+
+  • lib/views/admin/tenant_list_screen.dart
+    └─ List all tenants
+
+🔍 NOTIFICATIONS & ALERTS
+──────────────────────────
+Payment reminder:
+  • lib/services/api_service.dart
+    └─ sendPaymentReminder() @ Line ~195
+    └─ Sends WhatsApp message
+
+Emergency alert:
+  • lib/services/api_service.dart
+    └─ sendTelegramAlert() @ Line ~150
+    └─ Sends Telegram message to admin
+
+Broadcast:
+  • lib/views/admin/admin_broadcast_screen.dart
+    └─ Send announcement to all tenant
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. COMMON CODE PATTERNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Pattern 1: Database Query
+─────────────────────────
+final user = await _db.getUserByUsername(username);
+if (user != null) {
+  // User found, do something
+} else {
+  // User not found, show error
+}
+
+Pattern 2: API Call with Error Handling
+─────────────────────────────────────────
+final result = await _api.getMidtransSnapUrl(
+  orderId: orderId,
+  amount: amount,
+  customerName: name,
+);
+
+if (result.success) {
+  // Use result.redirectUrl
+} else {
+  // Show error: result.error
+}
+
+Pattern 3: Form Validation
+───────────────────────────
+if (!_formKey.currentState!.validate()) {
+  return; // Form validation failed
+}
+
+// Get values from form
+final input = _controller.text.trim();
+if (input.isEmpty) {
+  showSnackBar('Field cannot be empty');
+  return;
+}
+
+Pattern 4: State Management (GetX)
+───────────────────────────────────
+final _controller = Get.put(SomeController());
+
+// Later use:
+_controller.doSomething();
+
+// In UI:
+Obx(() => Text(_controller.someValue.toString()))
+
+Pattern 5: Try-Catch Error Handling
+─────────────────────────────────────
+try {
+  // Risky operation
+  final result = await someApiCall();
+} on TimeoutException {
+  showError('Request timeout');
+} on SocketException {
+  showError('No internet connection');
+} catch (e) {
+  showError('Error: ${e.toString()}');
+}
+
+Pattern 6: Loading Dialogs
+──────────────────────────
+showDialog(
+  context: context,
+  barrierDismissible: false,
+  builder: (_) => WillPopScope(
+    onWillPop: () => Future.value(false),
+    child: Center(child: CircularProgressIndicator()),
+  ),
+);
+
+// Later close:
+if (context.mounted) Navigator.pop(context);
+
+Pattern 7: SnackBar Messages
+────────────────────────────
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: Text('Success message'),
+    backgroundColor: Colors.green,
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    margin: const EdgeInsets.all(16),
+    duration: const Duration(seconds: 3),
+  ),
+);
+
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KESIMPULAN: HOW DATA FLOWS THROUGH KOSTIFY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. USER ACTION (UI)
+   └─→ Widget button/form di views/
+
+2. STATE MANAGEMENT (Controllers & Services)
+   └─→ GetX controllers atau Service classes
+   └─→ Handle business logic & validation
+
+3. DATABASE OPERATIONS (SQLite)
+   └─→ DatabaseHelper execute queries
+   └─→ Data saved/retrieved from local database
+
+4. EXTERNAL API CALLS (if needed)
+   └─→ ApiService make HTTP requests
+   └─→ Midtrans, Gemini, Telegram, etc
+
+5. RESPONSE HANDLING
+   └─→ Parse response
+   └─→ Update database if needed
+   └─→ Update UI state
+
+6. UI REFRESH
+   └─→ setState() atau Obx() update UI
+   └─→ Show success/error messages
+
+This is the basic flow for every feature in Kostify!
+
+================================================================================
+END OF KOSTIFY CODEBASE DOCUMENTATION
+=================================================================================

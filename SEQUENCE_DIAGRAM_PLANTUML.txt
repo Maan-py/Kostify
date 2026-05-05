@@ -1,0 +1,649 @@
+================================================================================
+KOSTIFY - ALUR PEMBAYARAN MIDTRANS (PlantUML Format)
+Format ini bisa digunakan di: plantuml.com atau tools lain
+Copy-paste ke: https://www.plantuml.com/plantuml/uml/
+================================================================================
+
+@startuml Payment_Midtrans_Flow
+title Kostify - Alur Pembayaran Midtrans (Tenant)
+actor TenantUser as tenant
+participant TenantDashboard as dashboard
+participant ApiService as api
+database Database as db
+participant "Midtrans API" as midtrans
+actor "External Browser" as browser
+
+== User Inisiasi Pembayaran ==
+tenant -> dashboard: Click "Bayar Sekarang"
+activate dashboard
+
+dashboard -> db: Get pending payment
+activate db
+db --> dashboard: PaymentModel (pending)
+deactivate db
+
+dashboard -> dashboard: Validate payment exists
+dashboard -> api: getMidtransSnapUrl()
+activate api
+
+== Validasi Kredensial ==
+api -> api: Check internet connection
+api -> api: Validate MIDTRANS_SERVER_KEY
+api -> api: Validate MIDTRANS_CLIENT_KEY
+api -> api: Encode Base64 credentials
+
+== Buat Transaksi ==
+api -> api: Generate Order ID\n(ORDER-{userId}-{timestamp})
+api -> api: Build payload:\ntransaction_details,\ncustomer_details,\ncallbacks
+api -> midtrans: POST /v2/transactions\n(Basic Auth)
+activate midtrans
+
+midtrans -> midtrans: Validate credentials
+midtrans -> midtrans: Create transaction token
+midtrans -> midtrans: Generate redirect_url
+midtrans --> api: HTTP 201 Created\n{redirect_url, token_snap}
+deactivate midtrans
+
+api --> dashboard: MidtransResult.success(redirectUrl)
+deactivate api
+
+== Update Database ==
+dashboard -> db: updatePaymentRecord()\n(orderId, snapUrl)
+activate db
+db --> dashboard: Updated
+deactivate db
+
+== Buka Payment Gateway ==
+dashboard -> browser: launchUrl(snapUrl)
+activate browser
+browser --> tenant: Midtrans Snap Payment Page
+deactivate browser
+deactivate dashboard
+
+== Proses Pembayaran ==
+tenant -> browser: Fill payment details\n(Card/eWallet/Bank Transfer)
+browser -> midtrans: HTTP POST Payment
+activate midtrans
+midtrans -> midtrans: Process payment\n(3D Secure, Fraud Check)
+midtrans --> browser: HTTP 200\n{status: success/failed}
+deactivate midtrans
+
+browser --> tenant: Redirect to finish page
+deactivate browser
+
+== Sync Status (Later) ==
+dashboard -> api: _syncMidtransPayments()
+activate api
+
+loop For each pending payment
+  api -> api: Get payment.orderId
+  api -> midtrans: GET /v2/{orderId}/status
+  activate midtrans
+  midtrans --> api: {transaction_status}
+  deactivate midtrans
+  
+  alt Status == settlement OR capture
+    api -> db: updatePaymentStatus()\n(PaymentStatus.PAID)
+    activate db
+    db --> api: Updated
+    deactivate db
+  end
+end
+
+api --> dashboard: Status synced
+deactivate api
+
+dashboard -> tenant: Payment shown as "Lunas"
+
+@enduml
+
+================================================================================
+KOSTIFY - ALUR OCR KTP SCANNER (PlantUML Format)
+Format ini bisa digunakan di: plantuml.com
+Copy-paste ke: https://www.plantuml.com/plantuml/uml/
+================================================================================
+
+@startuml OCR_KTP_Flow
+title Kostify - Alur OCR KTP Scanner (Admin)
+actor AdminUser as admin
+participant AddTenantScreen as screen
+participant KtpCamera as camera
+participant ImagePicker as picker
+participant FlutterCompress as compress
+participant GoogleMLKit as mlkit
+database Database as db
+
+== Pilih Sumber ==
+admin -> screen: Click "Scan KTP"
+activate screen
+screen -> admin: Show source picker dialog
+admin -> screen: Select "Camera"
+
+== Inisialisasi Camera ==
+screen -> camera: Navigate to KtpCameraCaptureScreen
+activate camera
+camera -> camera: initState()
+camera -> camera: availableCameras()
+camera -> camera: Select back camera
+camera -> camera: Initialize CameraController
+camera --> admin: Display camera preview\n(with KTP guide frame)
+
+== Capture Image ==
+admin -> camera: Click "Capture"
+camera -> camera: takePicture()
+camera --> screen: Return image path
+deactivate camera
+
+== Compress & Crop ==
+screen -> compress: FlutterImageCompress.compressWithFile()
+activate compress
+compress -> compress: Auto-fix EXIF rotation
+compress -> compress: Compress to JPEG (quality: 80)
+compress -> compress: minWidth: 1024, keepExif: false
+compress --> screen: Compressed Uint8List
+deactivate compress
+
+screen -> screen: _cropToGuideBox()
+screen -> screen: Calculate KTP aspect ratio (1.58)
+screen -> screen: Crop 88% width, 72% height
+screen --> screen: Cropped image
+
+== OCR Processing ==
+screen -> mlkit: Initialize TextRecognizer\n(script: LATIN)
+activate mlkit
+screen -> mlkit: recognizer.processImage()
+activate mlkit
+
+mlkit -> mlkit: Load ML Model
+mlkit -> mlkit: Text Detection (find regions)
+mlkit -> mlkit: Character Recognition
+mlkit -> mlkit: Calculate bounding boxes
+mlkit --> screen: RecognizedText Object
+deactivate mlkit
+deactivate mlkit
+
+== Parse Result ==
+screen -> screen: _parseKTPResult(recognizedText)
+screen -> screen: Extract OCR lines\n(text + boundingBox)
+screen -> screen: Sort by vertical position
+screen -> screen: Find field labels\n(NIK, NAMA, ALAMAT)
+screen -> screen: Extract values by alignment
+
+alt NIK extraction
+  screen -> screen: _extractNikByLayout()
+  screen -> screen: Fallback: _extractNikFromRawText()
+end
+
+screen -> screen: _extractSingleValueByAlignment()\n(for Nama)
+screen -> screen: _extractAlamatComposite()\n(multi-line for Alamat)
+
+== Display Result ==
+screen -> screen: Create debug boxes\n(colored rectangles for visualization)
+screen -> screen: Populate form fields\nautomatically
+screen --> admin: Show extracted data\n(with debug visualization)
+
+== Verify & Continue ==
+admin -> screen: Verify OCR result
+alt Data correct
+  admin -> screen: Click "Lanjut" (Next)
+  screen -> screen: Validate extracted data
+  screen --> admin: Move to next step
+else Data incorrect
+  admin -> screen: Manual edit text fields
+  admin -> screen: Click "Lanjut"
+end
+
+deactivate screen
+
+@enduml
+
+================================================================================
+KOSTIFY - CLASS DIAGRAM (PlantUML Format)
+Format ini bisa digunakan di: plantuml.com
+Copy-paste ke: https://www.plantuml.com/plantuml/uml/
+================================================================================
+
+@startuml ClassDiagram
+title Kostify - Class Diagram (Payment & User Management)
+
+package Models {
+  class PaymentModel {
+    - id: int?
+    - userId: int
+    - amount: int
+    - status: PaymentStatus
+    - bulan: string (yyyy-MM)
+    - createdAt: DateTime?
+    - paidAt: DateTime?
+    - keterangan: string?
+    - orderId: string? (Midtrans)
+    - snapUrl: string? (Midtrans)
+    ---
+    + toMap(): Map<String, dynamic>
+    + fromMap(map): PaymentModel
+    + copyWith(): PaymentModel
+  }
+
+  enum PaymentStatus {
+    PAID
+    PENDING
+    OVERDUE
+    ---
+    + label: string
+    + value: string
+  }
+
+  class UserModel {
+    - id: int?
+    - username: string
+    - password: string
+    - namaLengkap: string?
+    - nik: string?
+    - alamat: string?
+    - telepon: string?
+    - nomorKamar: string?
+    - hargaSewa: int?
+    - tanggalMasuk: string?
+    - role: string (tenant/admin)
+    ---
+    + toMap(): Map<String, dynamic>
+    + fromMap(map): UserModel
+  }
+}
+
+package Services {
+  class ApiService {
+    - timeout: Duration (30s)
+    ---
+    + hasInternet(): Future<bool>
+    + getMidtransSnapUrl(): Future<MidtransResult>
+    + checkMidtransTransactionStatus(): Future<Map>
+    + sendPaymentReminder(): Future<bool>
+    + sendTelegramAlert(): Future<bool>
+    + sendToGemini(): Future<GeminiResult>
+    + getExchangeRates(): Future<ExchangeRateResult>
+  }
+
+  class DatabaseHelper {
+    + createPayment(): Future<void>
+    + updatePaymentStatus(): Future<void>
+    + updatePaymentRecord(): Future<void>
+    + getPaymentsByUser(): Future<List<PaymentModel>>
+    + getUserById(): Future<UserModel?>
+    + createUser(): Future<void>
+    + getAvailableRooms(): Future<List<String>>
+    + isPaymentExists(): Future<bool>
+  }
+
+  class NotificationService {
+    + init(): Future<void>
+    + showNotification(): void
+  }
+}
+
+package Views {
+  class TenantDashboardScreen {
+    - _payments: List<PaymentModel>
+    - _user: UserModel
+    ---
+    + _loadPayments(): Future<void>
+    + _initiateMidtransPayment(): Future<void>
+    + _syncMidtransPayments(): Future<void>
+    + build(): Widget
+  }
+
+  class AddTenantScreen {
+    - _isScanning: bool
+    - _ocrError: string?
+    - _debugImageBytes: Uint8List?
+    ---
+    + _scanKTP(): Future<void>
+    + _parseKTPResult(): void
+    + _extractNikByLayout(): string
+    + _extractSingleValueByAlignment(): string
+    + _cropToGuideBox(): Future<Uint8List>
+    + build(): Widget
+  }
+
+  class KtpCameraCaptureScreen {
+    - _controller: CameraController?
+    - _isCapturing: bool
+    ---
+    + _initCamera(): Future<void>
+    + _capture(): Future<void>
+    + build(): Widget
+  }
+
+  class TenantDetailScreen {
+    - _tenant: UserModel
+    - _payments: List<PaymentModel>
+    ---
+    + _syncMidtransPayments(): Future<void>
+    + _markPaid(): Future<void>
+    + _addPayment(): Future<void>
+    + _sendTelegramReminder(): Future<void>
+    + build(): Widget
+  }
+}
+
+package ResultClasses {
+  class MidtransResult {
+    - success: bool
+    - redirectUrl: string?
+    - error: string?
+    ---
+    + success(redirectUrl): MidtransResult
+    + error(error): MidtransResult
+  }
+
+  class GeminiResult {
+    - success: bool
+    - text: string?
+    - error: string?
+  }
+
+  class ExchangeRateResult {
+    - success: bool
+    - rates: Map<String, double>?
+    - error: string?
+  }
+}
+
+' Relationships
+PaymentModel "many" --> "one" UserModel : belongs to
+PaymentModel "0..1" --> "*" PaymentStatus : has
+TenantDashboardScreen --> ApiService : uses
+TenantDashboardScreen --> DatabaseHelper : uses
+TenantDashboardScreen --> "list" PaymentModel : displays
+AddTenantScreen --> DatabaseHelper : uses
+AddTenantScreen --> GoogleMLKit : OCR
+KtpCameraCaptureScreen --> Camera : uses camera
+TenantDetailScreen --> ApiService : uses
+TenantDetailScreen --> DatabaseHelper : uses
+TenantDetailScreen --> "list" PaymentModel : manages
+ApiService --> MidtransResult : returns
+ApiService --> "Midtrans API" : calls
+DatabaseHelper --> "SQLite DB" : queries
+
+@enduml
+
+================================================================================
+KOSTIFY - STATE DIAGRAM (Payment Status) (PlantUML Format)
+================================================================================
+
+@startuml PaymentStateDiagram
+title Kostify - Payment Status State Diagram
+
+[*] --> PENDING: Admin creates\npayment
+
+PENDING --> PENDING: Tenant initiates\nMidtrans payment\n(orderId, snapUrl\nupdated)
+
+PENDING --> PAID: checkMidtransTransactionStatus()\nstatus = settlement/capture
+
+PENDING --> PAID: Admin manually\nmarks as paid
+
+PENDING --> OVERDUE: Current date >\ndue date\n(business logic)
+
+PAID --> [*]: Payment closed
+
+OVERDUE --> PAID: Payment made\nafter due date
+
+@enduml
+
+================================================================================
+KOSTIFY - ACTIVITY DIAGRAM (Midtrans Payment Flow) (PlantUML Format)
+================================================================================
+
+@startuml PaymentActivityDiagram
+title Kostify - Midtrans Payment Activity Flow
+
+start
+
+:User clicks "Bayar Sekarang";
+
+:Load pending payment\nfrom database;
+
+if (Payment exists?) then (yes)
+else (no)
+  :Show error;\n stop
+endif
+
+:Show loading dialog;
+
+:Generate unique Order ID;
+
+:Call API getMidtransSnapUrl();
+
+if (Has internet?) then (yes)
+else (no)
+  :Show error "No internet";\n stop
+endif
+
+if (Credentials valid?) then (yes)
+else (no)
+  :Show error "Invalid credentials";\n stop
+endif
+
+:Encode Base64 auth;
+
+:Build Midtrans payload;
+
+:HTTP POST to Midtrans API;
+
+if (HTTP 201 OK?) then (yes)
+else (no)
+  :Show error message;\n stop
+endif
+
+if (Has redirect_url?) then (yes)
+else (no)
+  :Show error;\n stop
+endif
+
+:Update payment record\n(orderId, snapUrl);
+
+:Close loading dialog;
+
+:Open Snap URL\nin external browser;
+
+:User sees payment\ngateway (Midtrans Snap);
+
+:User selects payment\nmethod;
+
+:User enters payment\ndetails;
+
+:Midtrans processes\npayment;
+
+:Midtrans returns\nstatus;
+
+:Browser redirects\nto finish page;
+
+:Later: App syncs\npayment status;
+
+:Query transaction\nstatus via API;
+
+if (Status = settlement\nOR capture?) then (yes)
+  :Update payment to PAID;\nSet paidAt = now;
+else (no)
+  :Keep status pending;
+endif
+
+:Refresh UI;
+
+:Show "Lunas" badge;
+
+stop
+
+@enduml
+
+================================================================================
+KOSTIFY - COMPONENT DIAGRAM (PlantUML Format)
+================================================================================
+
+@startuml ComponentDiagram
+title Kostify - System Architecture Components
+
+package "Mobile App (Flutter)" {
+  component UI[
+    UI Layer
+    ===
+    - TenantDashboardScreen
+    - AddTenantScreen
+    - TenantDetailScreen
+    - KtpCameraCaptureScreen
+  ]
+
+  component Controllers[
+    Controllers
+    ===
+    - TenantController
+    - AuthController
+  ]
+
+  component Services[
+    Services Layer
+    ===
+    - ApiService
+    - DatabaseHelper
+    - NotificationService
+    - ConnectivityService
+  ]
+
+  component Models[
+    Data Models
+    ===
+    - UserModel
+    - PaymentModel
+    - BroadcastModel
+  ]
+
+  component Utils[
+    Utilities
+    ===
+    - Constants
+    - Validators
+    - Formatters
+  ]
+}
+
+package "External Services" {
+  component Midtrans[
+    Midtrans API
+    ===
+    - /v2/transactions (POST)
+    - /v2/{orderId}/status (GET)
+  ]
+
+  component MLKit[
+    Google ML Kit
+    ===
+    - Text Recognition
+    - OCR Engine
+  ]
+
+  component Gemini[
+    Gemini AI
+    ===
+    - Chat API
+  ]
+
+  component Firebase[
+    Firebase
+    ===
+    - Notifications
+  ]
+}
+
+package "Local Storage" {
+  database SQLite[
+    SQLite Database
+    ===
+    - users table
+    - payments table
+    - broadcasts table
+  ]
+
+  component SharedPrefs[
+    Shared Preferences
+    ===
+    - User session
+    - App settings
+  ]
+}
+
+package "Device Resources" {
+  component Camera[
+    Camera
+    ===
+    - Photo capture
+    - Preview stream
+  ]
+
+  component ImageLib[
+    Image Library
+    ===
+    - Gallery access
+    - Image picker
+  ]
+}
+
+' Relationships
+UI --> Controllers: uses
+UI --> Services: calls
+Controllers --> Services: manages
+Services --> Models: operates on
+Services --> Midtrans: HTTP requests
+Services --> MLKit: OCR processing
+Services --> Gemini: AI queries
+Services --> SQLite: read/write
+Services --> SharedPrefs: get/set
+UI --> Camera: initialize
+UI --> ImageLib: select images
+Models --> Utils: validation/format
+
+@enduml
+
+================================================================================
+KOSTIFY - DEPLOYMENT DIAGRAM (PlantUML Format)
+================================================================================
+
+@startuml DeploymentDiagram
+title Kostify - Deployment Diagram
+
+artifact "APK/AAB" as apk
+artifact ".env config" as env
+
+node "User Device (Android)" as device {
+  component "Flutter App\n(Kostify)" as app
+  database "SQLite Local DB" as local_db
+  component "ML Kit Cache" as mlkit_cache
+}
+
+node "Midtrans Servers" as midtrans_node {
+  component "Sandbox API" as sandbox_api
+  component "Transaction\nProcessor" as processor
+  component "Payment\nGateway" as gateway
+}
+
+node "Google Cloud" as google {
+  component "ML Kit Service" as mlkit_service
+}
+
+node "Admin Dashboard" as admin_server {
+  component "Backend API" as backend
+  database "PostgreSQL/MySQL" as backend_db
+}
+
+device : Contains local payment cache
+device : SQLite syncs with backend
+device : Offline-capable
+
+app ..> local_db: read/write
+app ..> mlkit_cache: caches models
+app --> sandbox_api: HTTPS requests
+sandbox_api --> processor: process
+processor --> gateway: charge card
+app --> mlkit_service: text recognition
+app -.-> backend: REST API (optional)
+
+@enduml

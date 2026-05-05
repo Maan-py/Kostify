@@ -1,0 +1,522 @@
+================================================================================
+KOSTIFY - SEQUENCE DIAGRAM (Mermaid Format)
+Format ini bisa digunakan di: mermaid.live atau tools lain
+Copy-paste ke: https://mermaid.live/
+================================================================================
+
+sequenceDiagram
+    title Kostify - Alur Pembayaran Midtrans (Tenant)
+    
+    actor TenantUser as Tenant
+    participant Dashboard as Tenant Dashboard
+    participant ApiService as API Service
+    participant Database as Database
+    participant MidtransAPI as Midtrans API
+    participant Browser as Browser
+
+    rect rgb(200, 220, 255)
+    note over TenantUser,Browser: User Initiates Payment
+    Tenant->>Dashboard: Click "Bayar Sekarang"
+    activate Dashboard
+    
+    Dashboard->>Database: Get pending payment
+    activate Database
+    Database-->>Dashboard: PaymentModel (pending status)
+    deactivate Database
+    
+    Dashboard->>Dashboard: Validate payment
+    Dashboard->>Dashboard: Generate Order ID<br/>(ORDER-{userId}-{timestamp})
+    Dashboard->>Dashboard: Get customer name
+    end
+    
+    rect rgb(200, 255, 220)
+    note over Dashboard,MidtransAPI: Call Midtrans API
+    Dashboard->>ApiService: getMidtransSnapUrl()<br/>(orderId, amount, customerName)
+    activate ApiService
+    
+    ApiService->>ApiService: Check internet connection
+    ApiService->>ApiService: Validate MIDTRANS_SERVER_KEY
+    ApiService->>ApiService: Validate MIDTRANS_CLIENT_KEY
+    ApiService->>ApiService: Encode Base64 credentials<br/>(ServerKey:)
+    
+    ApiService->>ApiService: Build payload:<br/>- transaction_details<br/>- customer_details<br/>- callbacks
+    
+    ApiService->>MidtransAPI: HTTP POST /v2/transactions<br/>(Basic Auth)
+    activate MidtransAPI
+    
+    MidtransAPI->>MidtransAPI: Validate credentials
+    MidtransAPI->>MidtransAPI: Create transaction token
+    MidtransAPI->>MidtransAPI: Generate redirect_url
+    
+    MidtransAPI-->>ApiService: HTTP 201 Created<br/>{redirect_url, token_snap}
+    deactivate MidtransAPI
+    
+    ApiService-->>Dashboard: MidtransResult.success(redirectUrl)
+    deactivate ApiService
+    end
+    
+    rect rgb(220, 255, 200)
+    note over Dashboard,Database: Update Database
+    Dashboard->>Database: updatePaymentRecord()<br/>(orderId, snapUrl, timestamp)
+    activate Database
+    Database-->>Dashboard: Payment updated
+    deactivate Database
+    end
+    
+    rect rgb(255, 220, 200)
+    note over Dashboard,Browser: Open Payment Gateway
+    Dashboard->>Browser: launchUrl(snapUrl)
+    activate Browser
+    Browser-->>Tenant: Midtrans Snap Payment Page
+    end
+    
+    deactivate Dashboard
+    
+    rect rgb(255, 200, 200)
+    note over Tenant,MidtransAPI: Process Payment
+    Tenant->>Browser: Select payment method<br/>(Card/eWallet/Bank Transfer)
+    Tenant->>Browser: Enter payment details
+    
+    Browser->>MidtransAPI: HTTP POST (Payment)
+    activate MidtransAPI
+    MidtransAPI->>MidtransAPI: Process payment<br/>- 3D Secure check<br/>- Fraud detection<br/>- Card validation
+    MidtransAPI-->>Browser: HTTP 200<br/>{status: success/failed}
+    deactivate MidtransAPI
+    
+    Browser-->>Tenant: Redirect to finish page
+    deactivate Browser
+    end
+    
+    rect rgb(200, 200, 255)
+    note over Dashboard,MidtransAPI: Sync Payment Status (Later)
+    Dashboard->>ApiService: _syncMidtransPayments()
+    activate ApiService
+    
+    loop For each pending payment
+        ApiService->>ApiService: Get payment.orderId
+        ApiService->>MidtransAPI: HTTP GET /v2/{orderId}/status<br/>(Basic Auth)
+        activate MidtransAPI
+        MidtransAPI-->>ApiService: {transaction_status}
+        deactivate MidtransAPI
+        
+        alt Status = "settlement" OR "capture"
+            ApiService->>Database: updatePaymentStatus()<br/>(id, PaymentStatus.PAID)
+            activate Database
+            Database-->>ApiService: Updated
+            deactivate Database
+        end
+    end
+    
+    ApiService-->>Dashboard: Status synced
+    deactivate ApiService
+    end
+    
+    Dashboard->>Tenant: Payment shown as "Lunas" ✓
+
+================================================================================
+KOSTIFY - OCR KTP SCANNER SEQUENCE (Mermaid Format)
+================================================================================
+
+sequenceDiagram
+    title Kostify - Alur OCR KTP Scanner (Admin)
+    
+    actor AdminUser as Admin
+    participant Screen as AddTenantScreen
+    participant Camera as KtpCamera
+    participant Picker as ImagePicker
+    participant Compress as FlutterCompress
+    participant MLKit as GoogleMLKit
+    participant Database as Database
+
+    rect rgb(200, 220, 255)
+    note over AdminUser,Screen: Select Image Source
+    Admin->>Screen: Click "Scan KTP"
+    activate Screen
+    Screen->>Admin: Show source picker dialog
+    Admin->>Screen: Select "Camera"
+    end
+    
+    rect rgb(200, 255, 220)
+    note over Screen,Camera: Initialize Camera
+    Screen->>Camera: Navigate to KtpCameraCaptureScreen
+    activate Camera
+    Camera->>Camera: initState()
+    Camera->>Camera: availableCameras()
+    Camera->>Camera: Select back camera
+    Camera->>Camera: CameraController.initialize()
+    Camera-->>Admin: Display camera preview<br/>(with KTP guide frame)
+    end
+    
+    rect rgb(220, 255, 200)
+    note over AdminUser,Camera: Capture Image
+    Admin->>Camera: Click "Capture"
+    Camera->>Camera: takePicture()
+    Camera-->>Screen: Return image path
+    deactivate Camera
+    end
+    
+    rect rgb(255, 220, 200)
+    note over Screen,Compress: Compress Image
+    Screen->>Compress: FlutterImageCompress.compressWithFile()
+    activate Compress
+    Compress->>Compress: Auto-fix EXIF rotation
+    Compress->>Compress: Compress to JPEG (quality: 80)
+    Compress->>Compress: minWidth: 1024px
+    Compress->>Compress: keepExif: false (strip metadata)
+    Compress-->>Screen: Compressed Uint8List
+    deactivate Compress
+    
+    Screen->>Screen: _cropToGuideBox()
+    Screen->>Screen: Calculate KTP aspect ratio (1.58)
+    Screen->>Screen: Crop: 88% width, 72% height max
+    Screen->>Screen: Center crop for optimal recognition
+    Screen-->>Screen: Cropped image ready
+    end
+    
+    rect rgb(255, 200, 200)
+    note over Screen,MLKit: OCR Processing
+    Screen->>MLKit: Initialize TextRecognizer(script: LATIN)
+    activate MLKit
+    
+    Screen->>MLKit: recognizer.processImage(inputImage)
+    activate MLKit
+    MLKit->>MLKit: Load ML Model
+    MLKit->>MLKit: Text Detection<br/>(find text regions)
+    MLKit->>MLKit: Character Recognition<br/>(recognize each char)
+    MLKit->>MLKit: Calculate bounding boxes<br/>(text positions)
+    MLKit-->>Screen: RecognizedText Object<br/>{blocks[], lines[], text}
+    deactivate MLKit
+    
+    Screen->>MLKit: recognizer.close()
+    deactivate MLKit
+    end
+    
+    rect rgb(200, 200, 255)
+    note over Screen,Screen: Parse OCR Result
+    Screen->>Screen: _parseKTPResult(recognizedText)
+    Screen->>Screen: Extract OCR lines<br/>(text + boundingBox)
+    Screen->>Screen: Sort by vertical position<br/>(top to bottom)
+    Screen->>Screen: Find field labels<br/>- _isNikLabel()?<br/>- _isNamaLabel()?<br/>- _isAlamatLabel()?
+    
+    Screen->>Screen: Extract NIK value<br/>_extractNikByLayout()<br/>Fallback: _extractNikFromRawText()
+    Screen->>Screen: Extract Nama<br/>_extractSingleValueByAlignment()
+    Screen->>Screen: Extract Alamat (multi-line)<br/>_extractAlamatComposite()
+    
+    Screen->>Screen: Create debug boxes<br/>(colored rectangles)
+    Screen->>Screen: _setDebugImage()<br/>(for visualization)
+    end
+    
+    rect rgb(200, 255, 200)
+    note over Screen,Admin: Display & Verify
+    Screen-->>Admin: Show extracted data:<br/>- NIK<br/>- Nama<br/>- Alamat
+    Screen-->>Admin: Show debug visualization<br/>(colored boxes on image)
+    
+    Admin->>Screen: Verify OCR result
+    
+    alt Data is correct
+        Admin->>Screen: Click "Lanjut" (Next)
+        Screen->>Screen: Validate extracted data
+        Screen-->>Admin: Move to next step
+    else Data has errors
+        Admin->>Screen: Manual edit text fields
+        Admin->>Screen: Click "Lanjut"
+        Screen-->>Admin: Continue with corrected data
+    end
+    end
+    
+    deactivate Screen
+
+================================================================================
+KOSTIFY - CLASS DIAGRAM (Mermaid Format)
+================================================================================
+
+classDiagram
+
+    class PaymentModel{
+        -id: int?
+        -userId: int
+        -amount: int
+        -status: PaymentStatus
+        -bulan: string (yyyy-MM)
+        -createdAt: DateTime?
+        -paidAt: DateTime?
+        -keterangan: string?
+        -orderId: string?
+        -snapUrl: string?
+        +toMap() Map~String, dynamic~
+        +fromMap(Map) PaymentModel
+        +copyWith() PaymentModel
+    }
+
+    class PaymentStatus{
+        <<enum>>
+        PAID
+        PENDING
+        OVERDUE
+        +label: string
+        +value: string
+        +fromString(String) PaymentStatus
+    }
+
+    class UserModel{
+        -id: int?
+        -username: string
+        -password: string
+        -namaLengkap: string?
+        -nik: string?
+        -alamat: string?
+        -telepon: string?
+        -nomorKamar: string?
+        -hargaSewa: int?
+        -tanggalMasuk: string?
+        -role: string
+        +toMap() Map~String, dynamic~
+        +fromMap(Map) UserModel
+        +copyWith() UserModel
+    }
+
+    class ApiService{
+        -timeout: Duration
+        +hasInternet() Future~bool~
+        +getMidtransSnapUrl() Future~MidtransResult~
+        +checkMidtransTransactionStatus() Future~Map~
+        +sendPaymentReminder() Future~bool~
+        +sendTelegramAlert() Future~bool~
+        +sendToGemini() Future~GeminiResult~
+        +getExchangeRates() Future~ExchangeRateResult~
+    }
+
+    class DatabaseHelper{
+        +createPayment() Future~void~
+        +updatePaymentStatus() Future~void~
+        +updatePaymentRecord() Future~void~
+        +getPaymentsByUser() Future~List~
+        +getUserById() Future~UserModel?~
+        +createUser() Future~void~
+        +getAvailableRooms() Future~List~
+        +isPaymentExists() Future~bool~
+    }
+
+    class TenantDashboardScreen{
+        -_payments: List~PaymentModel~
+        -_user: UserModel
+        -_api: ApiService
+        -_db: DatabaseHelper
+        +_loadPayments() Future~void~
+        +_initiateMidtransPayment() Future~void~
+        +_syncMidtransPayments() Future~void~
+        +build() Widget
+    }
+
+    class AddTenantScreen{
+        -_isScanning: bool
+        -_ocrError: string?
+        -_debugImageBytes: Uint8List?
+        +_scanKTP() Future~void~
+        +_parseKTPResult(RecognizedText) void
+        +_extractNikByLayout() string
+        +_extractSingleValueByAlignment() string
+        +_cropToGuideBox() Future~Uint8List~
+        +build() Widget
+    }
+
+    class KtpCameraCaptureScreen{
+        -_controller: CameraController?
+        -_isCapturing: bool
+        +_initCamera() Future~void~
+        +_capture() Future~void~
+        +build() Widget
+    }
+
+    class MidtransResult{
+        -success: bool
+        -redirectUrl: string?
+        -error: string?
+        +success(String) MidtransResult
+        +error(String) MidtransResult
+    }
+
+    class GeminiResult{
+        -success: bool
+        -text: string?
+        -error: string?
+        +success(String) GeminiResult
+        +error(String) GeminiResult
+    }
+
+    PaymentModel "many" --> "one" UserModel
+    PaymentModel --> PaymentStatus
+    TenantDashboardScreen --> ApiService
+    TenantDashboardScreen --> DatabaseHelper
+    TenantDashboardScreen --> PaymentModel
+    AddTenantScreen --> DatabaseHelper
+    AddTenantScreen --> UserModel
+    ApiService --> MidtransResult
+    TenantDashboardScreen --|> AddTenantScreen
+
+================================================================================
+KOSTIFY - STATE DIAGRAM (Payment Status) (Mermaid Format)
+================================================================================
+
+stateDiagram-v2
+    [*] --> PENDING: Admin creates payment
+
+    PENDING --> PENDING: Tenant initiates payment<br/>(orderId, snapUrl updated)
+
+    PENDING --> PAID: checkMidtransTransactionStatus()<br/>status = settlement OR capture
+
+    PENDING --> PAID: Admin manually<br/>marks as paid
+
+    PENDING --> OVERDUE: Current date > due date
+
+    PAID --> [*]: Payment completed
+
+    OVERDUE --> PAID: Payment made after due date
+
+================================================================================
+KOSTIFY - ACTIVITY DIAGRAM (Mermaid Format)
+================================================================================
+
+graph TD
+    Start([Start: User Clicks 'Bayar Sekarang']) --> LoadPayment["Load pending payment<br/>from database"]
+    LoadPayment --> CheckExists{Payment<br/>exists?}
+    CheckExists -->|No| Error1["Show error<br/>'No payment found'"]
+    Error1 --> End1([End])
+    
+    CheckExists -->|Yes| ShowLoading["Show loading dialog"]
+    ShowLoading --> GenOrderID["Generate Order ID<br/>(ORDER-userId-timestamp)"]
+    GenOrderID --> CallAPI["Call API<br/>getMidtransSnapUrl()"]
+    
+    CallAPI --> CheckInternet{Has internet<br/>connection?}
+    CheckInternet -->|No| Error2["Show error<br/>'No internet'"]
+    Error2 --> End2([End])
+    
+    CheckInternet -->|Yes| ValidateCreds{Credentials<br/>valid?}
+    ValidateCreds -->|No| Error3["Show error<br/>'Invalid credentials'"]
+    Error3 --> End3([End])
+    
+    ValidateCreds -->|Yes| EncodeBase64["Encode Base64<br/>(ServerKey:)"]
+    EncodeBase64 --> BuildPayload["Build Midtrans payload<br/>- transaction_details<br/>- customer_details<br/>- callbacks"]
+    BuildPayload --> HTTPPost["HTTP POST to Midtrans API<br/>/v2/transactions"]
+    
+    HTTPPost --> CheckStatus{HTTP 201<br/>OK?}
+    CheckStatus -->|No| Error4["Show error<br/>from response"]
+    Error4 --> End4([End])
+    
+    CheckStatus -->|Yes| CheckURL{Has<br/>redirect_url?}
+    CheckURL -->|No| Error5["Show error<br/>'No redirect URL'"]
+    Error5 --> End5([End])
+    
+    CheckURL -->|Yes| UpdateDB["Update payment record<br/>(orderId, snapUrl)"]
+    UpdateDB --> CloseDialog["Close loading dialog"]
+    CloseDialog --> OpenBrowser["Open Snap URL<br/>in external browser"]
+    OpenBrowser --> ShowGateway["User sees Midtrans<br/>Snap payment page"]
+    
+    ShowGateway --> SelectMethod["User selects payment<br/>method & enters details"]
+    SelectMethod --> MidtransProcess["Midtrans processes<br/>payment with bank"]
+    MidtransProcess --> ReturnStatus{Payment<br/>success?}
+    
+    ReturnStatus -->|Yes| Finish["Redirect to finish page"]
+    ReturnStatus -->|No| Failed["Show failure message"]
+    Failed --> End6([End])
+    
+    Finish --> SyncLater["[Later] App syncs<br/>payment status"]
+    SyncLater --> QueryStatus["Query transaction<br/>status via API"]
+    QueryStatus --> CheckTxStatus{Status =<br/>settlement OR<br/>capture?}
+    
+    CheckTxStatus -->|Yes| MarkPaid["Update payment<br/>to PAID<br/>Set paidAt = now"]
+    CheckTxStatus -->|No| KeepPending["Keep status PENDING"]
+    
+    MarkPaid --> RefreshUI["Refresh UI"]
+    KeepPending --> RefreshUI
+    RefreshUI --> ShowPaid["Show 'Lunas' badge<br/>with checkmark ✓"]
+    ShowPaid --> End7([End])
+
+================================================================================
+KOSTIFY - OCR PROCESSING FLOWCHART (Mermaid Format)
+================================================================================
+
+graph TD
+    Start([Start: Captured Image]) --> Compress["FlutterImageCompress<br/>- Quality: 80%<br/>- Auto-fix EXIF<br/>- minWidth: 1024px"]
+    
+    Compress --> Crop["_cropToGuideBox()<br/>- Aspect ratio: 1.58 KTP<br/>- Crop: 88% width<br/>- Crop: 72% height max"]
+    
+    Crop --> MLKitInit["Initialize TextRecognizer<br/>(script: LATIN)"]
+    
+    MLKitInit --> Process["processImage()<br/>- Text Detection<br/>- Char Recognition<br/>- Bounding Box Calc"]
+    
+    Process --> ParseLines["Extract OCR Lines<br/>(text + boundingBox)"]
+    
+    ParseLines --> Sort["Sort by vertical<br/>position (top↓bottom)"]
+    
+    Sort --> FindLabels["Find Field Labels<br/>- NIK<br/>- NAMA LENGKAP<br/>- ALAMAT"]
+    
+    FindLabels --> ExtractNIK["_extractNikByLayout()<br/>- Search 16-digit number<br/>- Near NIK label"]
+    
+    ExtractNIK --> NIKCheck{Found?}
+    NIKCheck -->|No| NIKFallback["_extractNikFromRawText()<br/>Regex: \\d{16}"]
+    NIKCheck -->|Yes| ExtractNama
+    NIKFallback --> ExtractNama
+    
+    ExtractNama["_extractSingleValueByAlignment()<br/>- Align right of label<br/>- Get name value"]
+    
+    ExtractNama --> ExtractAlamat["_extractAlamatComposite()<br/>- Multi-line collection<br/>- Join with spaces"]
+    
+    ExtractAlamat --> CreateDebug["Create debug boxes<br/>- White: All text<br/>- Blue: NIK<br/>- Purple: Nama<br/>- Orange: Alamat"]
+    
+    CreateDebug --> PopulateForm["Populate form fields<br/>automatically:<br/>- _nikCtrl<br/>- _namaCtrl<br/>- _alamatCtrl"]
+    
+    PopulateForm --> DisplayResult["Display extracted data<br/>with debug visualization"]
+    
+    DisplayResult --> Verify{Admin verifies<br/>data OK?}
+    
+    Verify -->|Yes| Continue["Continue to next step"]
+    Verify -->|No| ManualEdit["Admin manually edits"]
+    ManualEdit --> Continue
+    
+    Continue --> End([End: Data saved])
+
+================================================================================
+KOSTIFY - CONTEXT DIAGRAM (Mermaid Format)
+================================================================================
+
+graph TB
+    User["👤 Tenant<br/>(End User)"]
+    Admin["👤 Admin<br/>(Building Manager)"]
+    
+    App["📱 Kostify App<br/>(Flutter Mobile)"]
+    
+    Midtrans["💳 Midtrans<br/>Payment Gateway"]
+    MLKit["🤖 Google ML Kit<br/>OCR Engine"]
+    Gemini["🧠 Gemini AI<br/>Chat Assistant"]
+    Telegram["📢 Telegram Bot<br/>Emergency Alerts"]
+    WhatsApp["💬 WhatsApp API<br/>Reminders"]
+    ExchangeRate["💱 Exchange Rate<br/>API"]
+    
+    User -->|View/Pay Rent| App
+    Admin -->|Manage Tenants| App
+    
+    App -->|Process Payment| Midtrans
+    Midtrans -->|Payment Status| App
+    
+    App -->|Text Recognition| MLKit
+    MLKit -->|Extracted Data| App
+    
+    App -->|Chat Queries| Gemini
+    Gemini -->|AI Responses| App
+    
+    App -->|Emergency Alert| Telegram
+    Telegram -->|Notify Admin| Admin
+    
+    App -->|Send Reminder| WhatsApp
+    WhatsApp -->|Notify Tenant| User
+    
+    App -->|Get Rates| ExchangeRate
+    ExchangeRate -->|Currency Rates| App
+    
+    style App fill:#4287f5,stroke:#000,stroke-width:3px,color:#fff
+    style User fill:#52c41a,stroke:#000,stroke-width:2px
+    style Admin fill:#52c41a,stroke:#000,stroke-width:2px
+    style Midtrans fill:#ff7a45,stroke:#000,stroke-width:2px
+    style MLKit fill:#1890ff,stroke:#000,stroke-width:2px
+    style Gemini fill:#722ed1,stroke:#000,stroke-width:2px
