@@ -1143,9 +1143,481 @@ Display:
 Data loaded from:
   • Database: Query aggregated data from payments & users
 
+
+
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FITUR 8: FLAPPY KOST - MINI GAME (HIBURAN)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File yang terlibat:
+  • lib/views/tenant/flappy_bird_screen.dart      (⭐ Main game logic)
+  • lib/views/tenant/tools_screen.dart            (Game menu & launcher)
+  • lib/services/sensor_service.dart              (Gyroscope control)
+  • lib/utils/constants.dart                      (Game constants)
+
+Library yang digunakan:
+  • sensors_plus                                  (Gyroscope access)
+  • flutter/services.dart                         (HapticFeedback, SystemChrome)
+
+DESKRIPSI GAME:
+────────────────
+Flappy Kost adalah mini game berbasis Flappy Bird untuk hiburan tenant.
+Mekanik:
+  • Tujuan: Hindari pipa (obstacles), kumpulkan koin (coins)
+  • Kontrol: Tap layar atau tilt phone (gyroscope mode)
+  • Scoring: +1 poin untuk setiap koin yang dikumpulkan
+  • Game Over: Menyentuh pipa atau ceiling/ground
+
+ALUR PERMAINAN (TENANT MEMAINKAN GAME):
+──────────────────────────────────────────
+
+STEP 1: TENANT MEMBUKA TOOLS SCREEN
+┌──────────────────────────────┐
+│ ToolsScreen (4 Tabs)         │
+│ ├─ Tab 1: Currency Converter │
+│ ├─ Tab 2: Time Converter     │
+│ ├─ Tab 3: AI Chat            │
+│ └─ Tab 4: Mini Game ← Click  │
+│                              │
+│ Tab 4 menampilkan:           │
+│ ├─ "Mini Game" heading       │
+│ └─ Game Card: "Flappy Kost"  │
+│    ├─ Icon & deskripsi       │
+│    ├─ Button: "MAIN"         │
+│    └─ Onclick: Navigate to   │
+│        FlappyBirdScreen      │
+└──────────────────────────────┘
+
+STEP 2: NAVIGATE KE FLAPPY BIRD SCREEN
+┌──────────────────────────────┐
+│ FlappyBirdScreen             │
+│                              │
+│ initState():                 │
+│ ├─ Disable shake detection   │
+│ ├─ _checkGyro()              │
+│ │  └─ Check if gyroscope     │
+│ │     available              │
+│ └─ Set portrait orientation  │
+│                              │
+│ Start screen displayed:      │
+│ ├─ Logo & title              │
+│ ├─ High score display        │
+│ ├─ Control mode selector     │
+│ │  ├─ "👆 TAP MODE"         │
+│ │  └─ "🎮 GYRO MODE"        │
+│ │     (if available)         │
+│ └─ Buttons:                  │
+│    └─ "MAINKAN"              │
+│    └─ Click → _startCountdown()
+└──────────────────────────────┘
+
+STEP 3: COUNTDOWN (3-2-1-MULAI!)
+┌──────────────────────────────┐
+│ _startCountdown()            │
+│                              │
+│ setState(() {                │
+│   _showCountdown = true;     │
+│   _countdown = 3;            │
+│ });                          │
+│                              │
+│ Timer.periodic(1 second):    │
+│ ├─ Display countdown number  │
+│ ├─ Decrease _countdown--     │
+│ ├─ When countdown <= 0:      │
+│ │  ├─ Stop timer             │
+│ │  ├─ Hide countdown         │
+│ │  └─ Call _startGame()      │
+│ └─ Show: "3" → "2" → "1" →   │
+│    "MULAI!"                  │
+└──────────────────────────────┘
+
+STEP 4: START GAME
+┌──────────────────────────────┐
+│ _startGame()                 │
+│                              │
+│ _resetState():               │
+│ ├─ _birdY = 0.5 (middle)    │
+│ ├─ _birdVelocity = 0        │
+│ ├─ _score = 0               │
+│ ├─ _pipes.clear()           │
+│ ├─ _coins.clear()           │
+│ ├─ _isDead = false          │
+│ └─ _gyroY = 0               │
+│                              │
+│ Start game loop:             │
+│ ├─ _lastFrame = now          │
+│ ├─ Timer.periodic(16ms):    │
+│ │  └─ Call _gameLoop()       │
+│ └─ setState(() {             │
+│      _isPlaying = true       │
+│    })                        │
+│                              │
+│ If GYRO MODE + available:    │
+│ └─ Start gyroscope sensor    │
+│    └─ _sensor.startGyroscope(
+│        (x, y, z) {           │
+│          _gyroY = y;         │
+│        }                     │
+│      )                       │
+│       (y axis = tilt depan/  │
+│        belakang)             │
+└──────────────────────────────┘
+
+STEP 5: GAME LOOP (16MS INTERVAL)
+┌──────────────────────────────┐
+│ _gameLoop(Timer t)           │
+│ Called every 16ms            │
+│                              │
+│ Calculate delta time (dt):   │
+│ ├─ now = DateTime.now()      │
+│ ├─ dt = (now - lastFrame)    │
+│ │  .inMilliseconds / 1000    │
+│ ├─ Clamp dt to max 50ms      │
+│ │  (to avoid huge jumps)     │
+│ └─ _lastFrame = now          │
+│                              │
+│ ┌─ BIRD PHYSICS ─────────────┐
+│ │                            │
+│ │ If GYRO MODE:              │
+│ │   ├─ gyroInput = _gyroY *  │
+│ │   │  GYRO_SENSITIVITY      │
+│ │   ├─ _birdVelocity =       │
+│ │   │  gyroInput / _screenH  │
+│ │   │  * 60                  │
+│ │   └─ _birdY += velocity    │
+│ │                            │
+│ │ If TAP MODE:               │
+│ │   ├─ gravity = GRAVITY /   │
+│ │   │  _screenH              │
+│ │   ├─ _birdVelocity +=      │
+│ │   │  gravity * dt          │
+│ │   │  (gravity acceleration)│
+│ │   └─ _birdY += velocity    │
+│ │      * dt                  │
+│ │                            │
+│ │ Check ceiling/ground:      │
+│ │   ├─ If _birdY <= 0 (top)  │
+│ │   ├─ If _birdY >= 1 (bottom)
+│ │   └─ → _die()              │
+│ │                            │
+│ └────────────────────────────┘
+│
+│ ┌─ SPAWN PIPES ──────────────┐
+│ │                            │
+│ │ Interval: screenW * 0.75   │
+│ │ (spawn when enough space)  │
+│ │                            │
+│ │ For each pipe spawn:       │
+│ │ ├─ Random gap center:      │
+│ │ │  gapCenter = 0.25 +      │
+│ │ │  random(0-0.5)           │
+│ │ │  (middle 50% of screen)  │
+│ │ │                          │
+│ │ ├─ Gap normalized:         │
+│ │ │  gapNorm = PIPE_GAP /    │
+│ │ │  screenH                 │
+│ │ │                          │
+│ │ ├─ Create pipe:            │
+│ │ │  Pipe(                   │
+│ │ │    x: screenW (spawn     │
+│ │ │       at right edge)     │
+│ │ │    gapTop: gapCenter -   │
+│ │ │    gapNorm/2             │
+│ │ │    gapBottom: gapCenter +
+│ │ │    gapNorm/2             │
+│ │ │  )                       │
+│ │ │                          │
+│ │ └─ Create coin at gap:     │
+│ │    Coin(                   │
+│ │      x: pipe.x + offset    │
+│ │      y: gap center height  │
+│ │    )                       │
+│ │                          │
+│ └────────────────────────────┘
+│
+│ ┌─ MOVE PIPES & COINS ───────┐
+│ │                            │
+│ │ pipeSpeed = PIPE_SPEED /   │
+│ │ screenW                    │
+│ │                            │
+│ │ For each pipe:             │
+│ │ └─ pipe.x -= pipeSpeed *   │
+│ │    dt * screenW            │
+│ │    (move left)             │
+│ │                            │
+│ │ For each coin:             │
+│ │ └─ coin.x -= pipeSpeed *   │
+│ │    dt * screenW            │
+│ │    (move left bersama pipe)│
+│ │                            │
+│ │ Remove off-screen:         │
+│ │ ├─ _pipes.removeWhere(     │
+│ │ │  p.x + pipeWidth < 0)    │
+│ │ └─ _coins.removeWhere(     │
+│ │    coin.x < 0 || collected)│
+│ │                          │
+│ └────────────────────────────┘
+│
+│ ┌─ CHECK COIN COLLISION ─────┐
+│ │                            │
+│ │ _checkCoinCollision()      │
+│ │                            │
+│ │ birdRect = circle at       │
+│ │   (birdX, birdY) dengan    │
+│ │   radius = birdSize/2*0.8  │
+│ │   (hitbox lebih kecil)     │
+│ │                            │
+│ │ For each coin:             │
+│ │ ├─ coinRect = rect at      │
+│ │ │  coin (x, y) dengan      │
+│ │ │  size = coinSize         │
+│ │ ├─ If birdRect.overlaps    │
+│ │ │  (coinRect):             │
+│ │ │  ├─ coin.collected = true│
+│ │ │  ├─ _score++             │
+│ │ │  ├─ Play haptic          │
+│ │ │  │  (vibration)          │
+│ │ │  └─ sound effect (jika   │
+│ │ │     ada)                 │
+│ │ └─ Continue next coin      │
+│ │                          │
+│ └────────────────────────────┘
+│
+│ ┌─ COLLISION DETECTION ──────┐
+│ │                            │
+│ │ _checkCollision()          │
+│ │                            │
+│ │ For each pipe:             │
+│ │ ├─ topRect = obstacle di   │
+│ │ │  atas gap               │
+│ │ ├─ bottomRect = obstacle   │
+│ │ │  di bawah gap           │
+│ │ │                          │
+│ │ ├─ Apply hitbox insets:    │
+│ │ │  ├─ X inset: 14% pipeW  │
+│ │ │  ├─ Top inset: 8%       │
+│ │ │  └─ Bottom inset: 8%    │
+│ │ │     (membuat hitbox      │
+│ │ │      lebih ketat)        │
+│ │ │                          │
+│ │ ├─ If birdRect.overlaps    │
+│ │ │  (topRect OR bottomRect):│
+│ │ │  ├─ _die()               │
+│ │ │  └─ return               │
+│ │ └─ Continue next pipe      │
+│ │                          │
+│ └────────────────────────────┘
+│
+│ setState() → Update UI       │
+│ └─ Redraw bird, pipes, coins,│
+│    score, etc.              │
+│                              │
+└──────────────────────────────┘
+
+STEP 6: TAP UNTUK JUMP (TAP MODE)
+┌──────────────────────────────┐
+│ GestureDetector.onTap        │
+│ └─→ _jump()                  │
+│                              │
+│ _jump():                     │
+│ ├─ Guard: if not playing or  │
+│ │         if dead: return    │
+│ ├─ If gyro mode: return      │
+│ │  (gyro mode tidak pakai tap)│
+│ │                            │
+│ ├─ HapticFeedback            │
+│ │  .lightImpact()            │
+│ │  (vibrate ringan)          │
+│ │                            │
+│ └─ setState(() {             │
+│      _birdVelocity =         │
+│      JUMP_VELOCITY /         │
+│      screenH                 │
+│      (instant upward         │
+│       velocity)              │
+│    })                        │
+│                              │
+│ Setelah ini, gravity akan    │
+│ pull bird down di game loop  │
+└──────────────────────────────┘
+
+STEP 7: TILT UNTUK KONTROL (GYRO MODE)
+┌──────────────────────────────┐
+│ Gyroscope sensor continuously│
+│ reading phone tilt           │
+│                              │
+│ _sensor.startGyroscope(      │
+│   (x, y, z) {                │
+│     _gyroY = y;  ← Y axis    │
+│                  (tilt depan)│
+│   }                          │
+│ );                           │
+│                              │
+│ In game loop:                │
+│ ├─ gyroInput = _gyroY *      │
+│ │  GYRO_SENSITIVITY          │
+│ ├─ _birdVelocity =           │
+│ │  gyroInput / screenH * 60  │
+│ │  (direct control,          │
+│ │   tidak pakai gravity)     │
+│ └─ _birdY += velocity        │
+│    (bird mengikuti tilt)     │
+│                              │
+│ Tilt depan (positive Y):     │
+│ └─→ Bird naik (negative      │
+│     velocity)                │
+│ Tilt belakang (negative Y):  │
+│ └─→ Bird turun (positive     │
+│     velocity)                │
+└──────────────────────────────┘
+
+STEP 8: COLLISION DENGAN PIPA
+┌──────────────────────────────┐
+│ _checkCollision()            │
+│ (in game loop)               │
+│                              │
+│ Jika bird menyentuh pipa:    │
+│ └─→ _die() dipanggil         │
+│                              │
+│ _die():                      │
+│ ├─ _isDead = true            │
+│ ├─ _isPlaying = false        │
+│ ├─ _gameTimer.cancel()       │
+│ ├─ _sensor.stopGyroscope()   │
+│ ├─ HapticFeedback            │
+│ │  .heavyImpact()            │
+│ │  (vibrate berat)           │
+│ │                            │
+│ ├─ Update high score:        │
+│ │  if (_score > _highScore)  │
+│ │    _highScore = _score     │
+│ │                            │
+│ └─ setState() → Show game    │
+│    over screen               │
+└──────────────────────────────┘
+
+STEP 9: GAME OVER SCREEN
+┌──────────────────────────────┐
+│ _buildGameOverScreen()       │
+│                              │
+│ Display:                     │
+│ ├─ "GAME OVER" text          │
+│ ├─ Score: {_score}           │
+│ ├─ High Score: {_highScore}  │
+│ ├─ If score == high score:   │
+│ │  ├─ "🏆 NEW RECORD!"      │
+│ │  └─ celebration effect     │
+│ ├─ Buttons:                  │
+│ │  ├─ "MAIN LAGI"            │
+│ │  │  → _startCountdown()    │
+│ │  │     (reset & play again)│
+│ │  └─ "KEMBALI"              │
+│ │     → Navigator.pop()      │
+│ │        (back to tools      │
+│ │         screen)            │
+│ └─ Control mode display      │
+│    (show which mode was used)│
+└──────────────────────────────┘
+
+GAME CONSTANTS (lib/utils/constants.dart):
+───────────────────────────────────────────
+  GRAVITY: 600 (pixel/s²)
+  JUMP_VELOCITY: -300 (pixel/s, negative = upward)
+  PIPE_SPEED: 200 (pixel/s)
+  PIPE_GAP: 180 (pixel, space between pipes)
+  GYRO_SENSITIVITY: 200 (multiplier untuk gyro input)
+
+UI RENDERING:
+──────────────
+Stack layers (bottom to top):
+  1. Background image (sky)
+  2. Pipes (top & bottom obstacles)
+  3. Coins (collectibles)
+  4. Ground scrolling strip
+  5. Bird character
+  6. Score display (if playing)
+  7. Countdown (if showing)
+  8. Start screen (if not playing)
+  9. Game over screen (if dead)
+  10. Back button
+
+Rendering dilakukan setiap frame (~60 FPS):
+  ├─ Update positions
+  ├─ Check collisions
+  ├─ setState() untuk trigger rebuild
+  └─ Flutter re-draws sesuai stack baru
+
+DATA STRUCTURES:
+─────────────────
+class _Pipe {
+  double x;                   // Horizontal position
+  double gapTop;              // Top of gap (normalized 0-1)
+  double gapBottom;           // Bottom of gap (normalized 0-1)
+}
+
+class _Coin {
+  double x;                   // Horizontal position
+  double y;                   // Vertical position
+  bool collected;             // Sudah dikumpulkan?
+}
+
+ERROR HANDLING & EDGE CASES:
+────────────────────────────
+  ❌ Gyroscope not available
+     └─ Check via _checkGyro() 
+     └─ Disable gyro mode option
+     └─ TAP mode always available
+  
+  ❌ High delta time (frame drop)
+     └─ Clamp dt to max 50ms
+     └─ Prevent huge velocity jumps
+  
+  ❌ Off-screen elements
+     └─ Automatically remove pipes/coins
+        when x < 0 or x > screenW
+  
+  ❌ Device rotation
+     └─ Set to portrait orientation
+     └─ Restore on dispose
+  
+  ❌ App background
+     └─ Cancel timers in dispose()
+     └─ Clean up sensor listeners
+
+FILE LOCATIONS:
+────────────────
+lib/views/tenant/flappy_bird_screen.dart
+  ├─ FlappyBirdScreen (StatefulWidget)
+  ├─ _startCountdown() @ Line ~100
+  ├─ _startGame() @ Line ~120
+  ├─ _gameLoop() @ Line ~140
+  ├─ _checkCoinCollision() @ Line ~200
+  ├─ _checkCollision() @ Line ~230
+  ├─ _die() @ Line ~300
+  ├─ _jump() @ Line ~315
+  ├─ build() @ Line ~330
+  ├─ _buildStartScreen()
+  ├─ _buildGameOverScreen()
+  ├─ _buildBird()
+  ├─ _buildPipe()
+  ├─ _buildCoin()
+  └─ _buildScrollingStrip()
+
+lib/views/tenant/tools_screen.dart
+  ├─ _GameTab class
+  ├─ _GameCard widget
+  └─ onPlay() callback
+     └─ Navigator to FlappyBirdScreen
+
+lib/services/sensor_service.dart
+  ├─ startGyroscope()
+  ├─ stopGyroscope()
+  └─ checkGyroAvailability()
+
+================================================================================
+
 4. DATA MODELS (STRUCTURE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
