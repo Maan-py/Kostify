@@ -5,57 +5,48 @@ import '../models/payment_model.dart';
 class StatisticsController extends GetxController {
   final _db = DatabaseHelper();
 
-  final currentMonth = ''.obs;
-  final isLoading = true.obs;
+  final currentMonth = Rx<DateTime>(DateTime.now());
+  final isLoading = RxBool(false);
   
-  final monthlyStats = <String, dynamic>{}.obs;
-  final comparison = <String, dynamic>{}.obs;
-  final trend = <Map<String, dynamic>>[].obs;
-  final availableMonths = <String>[].obs;
+  final monthlyStats = Rx<Map<String, dynamic>>({});
+  final trendData = RxList<Map<String, dynamic>>([]);
+  final comparison = Rx<Map<String, dynamic>>({});
+  final availableMonths = RxList<String>([]);
   final unpaidPayments = <PaymentModel>[].obs;
+  
+  final lastUpdated = Rx<DateTime>(DateTime.now());
 
   @override
   void onInit() {
     super.onInit();
-    final now = DateTime.now();
-    currentMonth.value = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-    _initData();
+    _loadAvailableMonths();
+    loadStats();
   }
 
-  Future<void> _initData() async {
-    await loadAvailableMonths();
-    await loadStats(currentMonth.value);
-  }
-
-  Future<void> loadAvailableMonths() async {
-    final months = await _db.getAvailableMonths();
-    availableMonths.assignAll(months);
-  }
-
-  Future<void> loadStats(String month) async {
+  Future<void> loadStats() async {
     isLoading.value = true;
     try {
-      currentMonth.value = month;
+      final yearMonth = _formatMonth(currentMonth.value);
       
-      // Load current and previous month comparison
-      final date = DateTime.tryParse('$month-01') ?? DateTime.now();
-      final prevDate = DateTime(date.year, date.month - 1, 1);
-      final prevMonthStr = '${prevDate.year}-${prevDate.month.toString().padLeft(2, '0')}';
+      // Load stats
+      final stats = await _db.getMonthlyStats(yearMonth);
+      monthlyStats.value = stats;
       
-      final comp = await _db.getMonthlyComparison(month, prevMonthStr);
+      // Load trend (6 months)
+      final trend = await _db.getMonthlyTrendData(6, yearMonth);
+      trendData.value = trend;
+      
+      // Load comparison
+      final prevMonth = _getPreviousMonth(currentMonth.value);
+      final prevYearMonth = _formatMonth(prevMonth);
+      final comp = await _db.getMonthlyComparison(yearMonth, prevYearMonth);
       comparison.value = comp;
-      
-      // Monthly stats is just the current part of comparison
-      monthlyStats.value = await _db.getMonthlyStats(month);
-      
-      // Trend data (6 months)
-      final trendData = await _db.getMonthlyTrendData(6, month);
-      trend.assignAll(trendData);
 
       // Unpaid payments
-      final unpaid = await _db.getUnpaidPaymentsByMonth(month);
+      final unpaid = await _db.getUnpaidPaymentsByMonth(yearMonth);
       unpaidPayments.assignAll(unpaid);
       
+      lastUpdated.value = DateTime.now();
     } catch (e) {
       Get.snackbar('Error', 'Gagal memuat statistik: $e', 
         snackPosition: SnackPosition.BOTTOM);
@@ -65,27 +56,52 @@ class StatisticsController extends GetxController {
   }
 
   void goToPreviousMonth() {
-    final date = DateTime.tryParse('${currentMonth.value}-01') ?? DateTime.now();
-    final prevDate = DateTime(date.year, date.month - 1, 1);
-    final prevMonthStr = '${prevDate.year}-${prevDate.month.toString().padLeft(2, '0')}';
-    loadStats(prevMonthStr);
+    currentMonth.value = DateTime(
+      currentMonth.value.year,
+      currentMonth.value.month - 1,
+    );
+    loadStats();
   }
 
   void goToNextMonth() {
-    final date = DateTime.tryParse('${currentMonth.value}-01') ?? DateTime.now();
     final now = DateTime.now();
+    final nextMonth = DateTime(
+      currentMonth.value.year,
+      currentMonth.value.month + 1,
+    );
     
-    // Prevent going to future months
-    if (date.year == now.year && date.month == now.month) return;
+    // Check if next month > current month
+    if (nextMonth.year > now.year || 
+        (nextMonth.year == now.year && nextMonth.month > now.month)) {
+      return; // Disable navigation
+    }
     
-    final nextDate = DateTime(date.year, date.month + 1, 1);
-    final nextMonthStr = '${nextDate.year}-${nextDate.month.toString().padLeft(2, '0')}';
-    loadStats(nextMonthStr);
+    currentMonth.value = nextMonth;
+    loadStats();
   }
 
-  bool get isCurrentMonthLatest {
-    final date = DateTime.tryParse('${currentMonth.value}-01') ?? DateTime.now();
+  bool canGoToNextMonth() {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month;
+    final nextMonth = DateTime(
+      currentMonth.value.year,
+      currentMonth.value.month + 1,
+    );
+    return !(nextMonth.year > now.year || 
+        (nextMonth.year == now.year && nextMonth.month > now.month));
+  }
+
+  bool get isCurrentMonthLatest => !canGoToNextMonth();
+
+  Future<void> _loadAvailableMonths() async {
+    final months = await _db.getAvailableMonths();
+    availableMonths.value = months;
+  }
+
+  String _formatMonth(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
+  }
+
+  DateTime _getPreviousMonth(DateTime date) {
+    return DateTime(date.year, date.month - 1);
   }
 }

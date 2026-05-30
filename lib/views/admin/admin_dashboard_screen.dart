@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/database_helper.dart';
+import '../../services/api_service.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'admin_broadcast_screen.dart';
@@ -96,10 +97,23 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
 
+  List<Map<String, dynamic>> _unpaidPayments = [];
+  String _selectedFilter = 'all';
+
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadUnpaidPayments();
+  }
+
+  Future<void> _loadUnpaidPayments() async {
+    final now = DateTime.now();
+    final ym = '${now.year}-${now.month.toString().padLeft(2, "0")}';
+    final payments = await _db.getUnpaidPaymentsByFilter(ym, _selectedFilter);
+    if (mounted) {
+      setState(() => _unpaidPayments = payments);
+    }
   }
 
   Future<void> _loadStats() async {
@@ -112,13 +126,18 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    await _loadStats();
+    await _loadUnpaidPayments();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadStats,
+          onRefresh: _handleRefresh,
           color: const Color(0xFF8095E4),
           child: CustomScrollView(
             slivers: [
@@ -206,6 +225,19 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      
+                      // Tagihan Belum Dibayar Card
+                      _UnpaidPaymentsCard(
+                        unpaidPayments: _unpaidPayments,
+                        selectedFilter: _selectedFilter,
+                        onFilterChanged: (filter) {
+                          setState(() => _selectedFilter = filter);
+                          _loadUnpaidPayments();
+                        },
+                        onTenantTap: (tenant) => _showTenantDetail(context, tenant['user_id'] as int),
+                        onSendReminder: _sendReminder,
+                      ),
+                      const SizedBox(height: 24),
                       const Text(
                         'Aksi Cepat',
                         style: TextStyle(
@@ -282,6 +314,208 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _sendReminder(Map<String, dynamic> payment) async {
+    final userId = payment['user_id'] as int;
+    final detail = await _db.getTenantDetailForPayment(userId);
+    if (detail.isEmpty) return;
+
+    final phone = detail['telepon'] as String? ?? '';
+    if (phone.isEmpty) {
+      Get.snackbar('Gagal', 'Tenant tidak memiliki nomor WhatsApp', backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+
+    final success = await ApiService().sendPaymentReminder(
+      tenantName: payment['nama_lengkap'] ?? 'Tenant',
+      nomorHP: phone,
+      bulan: payment['bulan'] ?? '-',
+      amount: payment['amount'] as int? ?? 0,
+    );
+
+    if (!success) {
+      Get.snackbar('Gagal', 'Tidak dapat membuka WhatsApp', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _showTenantDetail(BuildContext context, int userId) async {
+    final detail = await _db.getTenantDetailForPayment(userId);
+    if (detail.isEmpty) return;
+
+    if (!context.mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(ctx).size.height * 0.8,
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Detail Tenant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Profil Singkat
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: const Color(0xFF8095E4).withOpacity(0.2),
+                    child: const Icon(Icons.person, color: Color(0xFF8095E4), size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(detail['nama_lengkap'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('@${detail['username'] ?? '-'}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE5E7EB),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text('Kamar ${detail['nomor_kamar'] ?? '-'}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              // Riwayat Pembayaran
+              const Text('Riwayat Pembayaran (6 Bulan Terakhir)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: (detail['payment_history'] as List).length,
+                  itemBuilder: (context, index) {
+                    final p = detail['payment_history'][index];
+                    final isPaid = p['status'] == 'paid';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(p['bulan'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(AppValidators.formatRupiah(p['amount'] as int? ?? 0)),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isPaid ? const Color(0xFF1BC0BA).withOpacity(0.1) : const Color(0xFFFF9800).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(isPaid ? Icons.check_circle : Icons.warning_rounded, size: 14, color: isPaid ? const Color(0xFF1BC0BA) : const Color(0xFFFF9800)),
+                            const SizedBox(width: 4),
+                            Text(isPaid ? 'PAID' : 'PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isPaid ? const Color(0xFF1BC0BA) : const Color(0xFFFF9800))),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final phone = detail['telepon'] as String? ?? '';
+                        if (phone.isEmpty) {
+                          Get.snackbar('Gagal', 'Tenant tidak memiliki nomor WhatsApp', backgroundColor: Colors.red, colorText: Colors.white);
+                          return;
+                        }
+                        
+                        // We take the latest unpaid payment amount
+                        int amount = 0;
+                        String bulan = '-';
+                        final history = detail['payment_history'] as List?;
+                        if (history != null && history.isNotEmpty) {
+                          final unpaid = history.firstWhere((p) => p['status'] != 'paid', orElse: () => history.first);
+                          amount = unpaid['amount'] as int? ?? 0;
+                          bulan = unpaid['bulan'] ?? '-';
+                        }
+
+                        final success = await ApiService().sendPaymentReminder(
+                          tenantName: detail['nama_lengkap'] ?? 'Tenant',
+                          nomorHP: phone,
+                          bulan: bulan,
+                          amount: amount,
+                        );
+
+                        if (!success) {
+                          Get.snackbar('Gagal', 'Tidak dapat membuka WhatsApp', backgroundColor: Colors.red, colorText: Colors.white);
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1BC0BA), side: const BorderSide(color: Color(0xFF1BC0BA)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.message_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Kirim WhatsApp'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back();
+                        Get.snackbar('Info', 'Fitur pembayaran akan datang!', backgroundColor: const Color(0xFF8095E4), colorText: Colors.white);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8095E4),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Tandai Bayar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -492,6 +726,198 @@ class _PendapatanCard extends StatelessWidget {
     );
   }
 }
+
+// ─── Unpaid Payments Card ───────────────────────────────────────────────────
+
+class _UnpaidPaymentsCard extends StatefulWidget {
+  final List<Map<String, dynamic>> unpaidPayments;
+  final String selectedFilter;
+  final Function(String) onFilterChanged;
+  final Function(Map<String, dynamic>) onTenantTap;
+  final Function(Map<String, dynamic>) onSendReminder;
+
+  const _UnpaidPaymentsCard({
+    required this.unpaidPayments,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+    required this.onTenantTap,
+    required this.onSendReminder,
+  });
+
+  @override
+  State<_UnpaidPaymentsCard> createState() => _UnpaidPaymentsCardState();
+}
+
+class _UnpaidPaymentsCardState extends State<_UnpaidPaymentsCard> {
+  Map<String, dynamic>? _selectedPayment;
+
+  void _toggleSelectAll() {
+    // Deprecated
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header & Filter
+          Padding(
+            padding: const EdgeInsets.all(20).copyWith(bottom: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Tagihan Belum Dibayar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(8)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: widget.selectedFilter,
+                      isDense: true,
+                      icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563), fontWeight: FontWeight.w600),
+                      onChanged: (v) {
+                        _selectedPayment = null;
+                        if (v != null) widget.onFilterChanged(v);
+                      },
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('Semua')),
+                        DropdownMenuItem(value: 'overdue', child: Text('Overdue')),
+                        DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          if (widget.unpaidPayments.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: const Color(0xFF1BC0BA).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Color(0xFF1BC0BA)),
+                    SizedBox(width: 12),
+                    Text('Semua tagihan sudah lunas ✓', style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // List Items (Max 3)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.unpaidPayments.length > 3 ? 3 : widget.unpaidPayments.length,
+              separatorBuilder: (ctx, i) => const Divider(height: 1),
+              itemBuilder: (ctx, i) {
+                final p = widget.unpaidPayments[i];
+                final isOverdue = (p['hari_overdue'] as int? ?? 0) >= 30;
+                final userId = p['user_id'] as int;
+                final hari = p['hari_overdue'] as int? ?? 0;
+                
+                return InkWell(
+                  onTap: () => widget.onTenantTap(p),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    child: Row(
+                      children: [
+                        Radio<Map<String, dynamic>>(
+                          value: p,
+                          groupValue: _selectedPayment,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedPayment = val;
+                            });
+                          },
+                          activeColor: const Color(0xFF1BC0BA),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p['nama_lengkap'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                              const SizedBox(height: 4),
+                              Text(AppValidators.formatRupiah(p['amount'] as int? ?? 0), style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(4)),
+                              child: Text('Kamar ${p['nomor_kamar'] ?? '-'}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isOverdue ? const Color(0xFFFF6B6B).withOpacity(0.1) : const Color(0xFFFF9800).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(isOverdue ? '🔴 OVERDUE (${hari}h)' : '🟡 PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOverdue ? const Color(0xFFFF6B6B) : const Color(0xFFFF9800))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            
+            const Divider(height: 1),
+            // Footer Actions
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  if (_selectedPayment != null)
+                    ElevatedButton.icon(
+                      onPressed: () => widget.onSendReminder(_selectedPayment!),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1BC0BA),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                        minimumSize: const Size(0, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.message_rounded, size: 16),
+                      label: const Text('Kirim WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  const Spacer(),
+                  if (widget.unpaidPayments.length > 3)
+                    TextButton(
+                      onPressed: () => Get.toNamed('/admin/statistics'),
+                      child: const Text('View All →', style: TextStyle(color: Color(0xFF8095E4), fontWeight: FontWeight.bold, fontSize: 12)),
+                    )
+                ],
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+}
+
 
 class _StatCard extends StatelessWidget {
   final String label;

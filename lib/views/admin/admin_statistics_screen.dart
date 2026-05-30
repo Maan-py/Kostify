@@ -26,17 +26,17 @@ class AdminStatisticsScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF8095E4)));
         }
 
-        final monthlyStats = controller.monthlyStats;
-        final comp = controller.comparison;
+        final monthlyStats = controller.monthlyStats.value;
+        final comp = controller.comparison.value;
         final isCurrentLatest = controller.isCurrentMonthLatest;
-        final nowStr = DateFormat('HH:mm:ss').format(DateTime.now());
+        final nowStr = DateFormat('HH:mm:ss').format(controller.lastUpdated.value);
 
         // Check empty state
         final bool isEmpty = (monthlyStats['total_tenant'] as int? ?? 0) == 0 &&
             (monthlyStats['pendapatan'] as int? ?? 0) == 0;
 
         return RefreshIndicator(
-          onRefresh: () => controller.loadStats(controller.currentMonth.value),
+          onRefresh: controller.loadStats,
           color: const Color(0xFF8095E4),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -104,7 +104,7 @@ class AdminStatisticsScreen extends StatelessWidget {
                       Text('Last updated: $nowStr', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
                       IconButton(
                         icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF6B7280)),
-                        onPressed: () => controller.loadStats(controller.currentMonth.value),
+                        onPressed: controller.loadStats,
                         constraints: const BoxConstraints(),
                         padding: const EdgeInsets.only(left: 8),
                       )
@@ -120,14 +120,8 @@ class AdminStatisticsScreen extends StatelessWidget {
     );
   }
 
-  String _formatMonthYear(String ym) {
-    if (ym.length < 7) return ym;
-    try {
-      final date = DateTime.parse('$ym-01');
-      return DateFormat('MMMM yyyy').format(date);
-    } catch (_) {
-      return ym;
-    }
+  String _formatMonthYear(DateTime date) {
+    return DateFormat('MMMM yyyy').format(date);
   }
 
   Widget _buildEmptyState() {
@@ -218,7 +212,7 @@ class AdminStatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildBarChartCard(StatisticsController controller) {
-    final trend = controller.trend.reversed.toList(); // Earliest to latest
+    final trend = controller.trendData.reversed.toList(); // Earliest to latest
 
     double maxY = 0;
     for (var m in trend) {
@@ -319,7 +313,7 @@ class AdminStatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildLineChartCard(StatisticsController controller) {
-    final trend = controller.trend.reversed.toList();
+    final trend = controller.trendData.reversed.toList();
     
     List<FlSpot> terisiSpots = [];
     List<FlSpot> kosongSpots = [];

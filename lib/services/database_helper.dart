@@ -990,7 +990,7 @@ class DatabaseHelper {
       SELECT p.*, u.nama_lengkap as user_name, u.nomor_kamar as nomor_kamar 
       FROM payments p 
       JOIN users u ON p.user_id = u.id 
-      WHERE p.status != 'paid' AND p.bulan = ?
+      WHERE p.status != 'paid' AND SUBSTR(p.created_at, 1, 7) <= ?
     ''', [yearMonth]);
     return result.map((map) => PaymentModel.fromMap(map)).toList();
   }
@@ -1011,8 +1011,71 @@ class DatabaseHelper {
     return months;
   }
 
-  // ─── Utility ───────────────────────────────────────────────────────────────
+  // ─── UNPAID PAYMENTS & DASHBOARD ──────────────────────────────────────────
 
+  Future<List<Map<String, dynamic>>> getUnpaidPaymentsForCurrentMonth() async {
+    final now = DateTime.now();
+    final ym = '${now.year}-${now.month.toString().padLeft(2, "0")}';
+    return getUnpaidPaymentsByFilter(ym, 'all');
+  }
+
+  Future<List<Map<String, dynamic>>> getUnpaidPaymentsByFilter(String yearMonth, String filter) async {
+    final db = await database;
+    String statusCond = "p.status != 'paid'";
+    
+    if (filter == 'overdue') {
+      statusCond = "p.status = 'pending' AND p.created_at < date('now', '-30 days')";
+    } else if (filter == 'pending') {
+      statusCond = "p.status = 'pending' AND p.created_at >= date('now', '-30 days')";
+    }
+
+    final result = await db.rawQuery('''
+      SELECT 
+        p.user_id, 
+        u.nama_lengkap, 
+        u.nomor_kamar, 
+        p.amount, 
+        p.status, 
+        p.bulan,
+        CAST(julianday('now') - julianday(p.created_at) AS INTEGER) as hari_overdue
+      FROM payments p 
+      JOIN users u ON p.user_id = u.id 
+      WHERE $statusCond AND SUBSTR(p.created_at, 1, 7) <= ?
+      ORDER BY 
+        CASE WHEN CAST(julianday('now') - julianday(p.created_at) AS INTEGER) >= 30 THEN 0 ELSE 1 END,
+        p.created_at ASC
+    ''', [yearMonth]);
+    
+    return List<Map<String, dynamic>>.from(result);
+  }
+
+  Future<Map<String, dynamic>> getTenantDetailForPayment(int userId) async {
+    final db = await database;
+    final userResult = await db.query('users', where: 'id = ?', whereArgs: [userId], limit: 1);
+    if (userResult.isEmpty) return {};
+    
+    final user = Map<String, dynamic>.from(userResult.first);
+    final paymentsResult = await db.rawQuery('''
+      SELECT bulan, amount, status, paid_at 
+      FROM payments 
+      WHERE user_id = ? 
+      ORDER BY bulan DESC 
+      LIMIT 6
+    ''', [userId]);
+    
+    user['payment_history'] = List<Map<String, dynamic>>.from(paymentsResult);
+    return user;
+  }
+
+  Future<int> getUnpaidCount() async {
+    final db = await database;
+    final now = DateTime.now();
+    final ym = '${now.year}-${now.month.toString().padLeft(2, "0")}';
+    final result = await db.rawQuery("SELECT COUNT(*) as count FROM payments WHERE status != 'paid' AND SUBSTR(created_at, 1, 7) <= ?", [ym]);
+    return (result.first['count'] as int?) ?? 0;
+  }
+
+  // ─── Utility ───────────────────────────────────────────────────────────────
   Future<void> close() async {
     final db = await database;
     await db.close();
