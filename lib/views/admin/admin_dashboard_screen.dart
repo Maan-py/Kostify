@@ -7,6 +7,7 @@ import '../../services/database_helper.dart';
 import '../../utils/validators.dart';
 import '../shared/saran_kesan_screen.dart';
 import 'admin_broadcast_screen.dart';
+import 'admin_statistics_screen.dart';
 import 'tenant_list_screen.dart';
 import 'admin_chat_screen.dart';
 
@@ -168,6 +169,7 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                         pendapatan: _stats['pendapatan_bulan_ini'] as int? ?? 0,
                         bulan: _stats['bulan'] as String? ?? '',
                         tagihanPending: _stats['tagihan_pending'] as int? ?? 0,
+                        diffPendapatan: _stats['diff_pendapatan'] as int? ?? 0,
                       ),
                       const SizedBox(height: 16),
                       // Grid statistik kamar
@@ -179,6 +181,7 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                               value: '${_stats['tenant_aktif'] ?? 0}',
                               icon: Icons.bed_rounded,
                               color: const Color(0xFF1BC0BA),
+                              diff: _stats['diff_tenant_aktif'] as int? ?? 0,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -188,6 +191,7 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                               value: '${_stats['tenant_nonaktif'] ?? 0}',
                               icon: Icons.bed_outlined,
                               color: const Color(0xFF6B7280),
+                              diff: _stats['diff_tenant_nonaktif'] as int? ?? 0,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -247,6 +251,15 @@ class _AdminHomeTabState extends State<_AdminHomeTab> {
                                     _AdminDashboardScreenState>();
                                 state?.setState(() => state._currentIndex = 2);
                               },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _QuickActionCard(
+                              icon: Icons.bar_chart_rounded,
+                              label: 'Statistik Bulanan',
+                              color: const Color(0xFFE91E63),
+                              onTap: () => Get.to(() => const AdminStatisticsScreen()),
                             ),
                           ),
                         ],
@@ -371,11 +384,13 @@ class _PendapatanCard extends StatelessWidget {
   final int pendapatan;
   final String bulan;
   final int tagihanPending;
+  final int diffPendapatan;
 
   const _PendapatanCard({
     required this.pendapatan,
     required this.bulan,
     required this.tagihanPending,
+    this.diffPendapatan = 0,
   });
 
   @override
@@ -393,8 +408,44 @@ class _PendapatanCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pendapatan Bulan Ini',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Pendapatan Bulan Ini',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              if (diffPendapatan != 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: diffPendapatan > 0
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        diffPendapatan > 0
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        color: diffPendapatan > 0 ? Colors.greenAccent : Colors.redAccent,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        AppValidators.formatRupiah(diffPendapatan.abs()),
+                        style: TextStyle(
+                          color: diffPendapatan > 0 ? Colors.greenAccent : Colors.redAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
             AppValidators.formatRupiah(pendapatan),
@@ -447,12 +498,14 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final int? diff;
 
   const _StatCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
+    this.diff,
   });
 
   @override
@@ -467,7 +520,30 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 24),
+              if (diff != null && diff != 0)
+                Row(
+                  children: [
+                    Icon(
+                      diff! > 0 ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                      color: diff! > 0 ? Colors.green : Colors.red,
+                      size: 20,
+                    ),
+                    Text(
+                      diff!.abs().toString(),
+                      style: TextStyle(
+                        color: diff! > 0 ? Colors.green : Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(value,
               style: TextStyle(

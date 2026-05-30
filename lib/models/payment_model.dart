@@ -49,6 +49,9 @@ class PaymentModel {
   final String? orderId;   // Midtrans Order ID
   final String? snapUrl;   // Midtrans Snap URL
 
+  final String? userName;
+  final String? nomorKamar;
+
   const PaymentModel({
     this.id,
     required this.userId,
@@ -60,6 +63,8 @@ class PaymentModel {
     this.keterangan,
     this.orderId,
     this.snapUrl,
+    this.userName,
+    this.nomorKamar,
   });
 
   Map<String, dynamic> toMap() {
@@ -93,6 +98,8 @@ class PaymentModel {
       keterangan: map['keterangan'] as String?,
       orderId: map['order_id'] as String?,
       snapUrl: map['snap_url'] as String?,
+      userName: map['user_name'] as String?,
+      nomorKamar: map['nomor_kamar'] as String?,
     );
   }
 
