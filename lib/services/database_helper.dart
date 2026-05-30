@@ -609,37 +609,50 @@ class DatabaseHelper {
   }
 
   /// Statistik: Total pendapatan bulan ini (dari payment yang lunas)
-  Future<Map<String, dynamic>> getDashboardStats() async {
+  Future<Map<String, dynamic>> getStatsForMonth(DateTime date) async {
     try {
       final db = await database;
-      final now = DateTime.now();
-      final bulanIni = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final bulanIni = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+      
+      // Calculate the last day of the queried month
+      final nextMonth = DateTime(date.year, date.month + 1, 1);
+      final lastDayOfMonth = nextMonth.subtract(const Duration(days: 1));
+      final endOfMonthStr = '${lastDayOfMonth.year}-${lastDayOfMonth.month.toString().padLeft(2, '0')}-${lastDayOfMonth.day.toString().padLeft(2, '0')}';
 
-      // Total tenant
+      // Total tenant yang masuk pada atau sebelum akhir bulan tersebut
       final totalTenantResult = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM users WHERE role = 'tenant'",
+        "SELECT COUNT(*) as count FROM users WHERE role = 'tenant' AND SUBSTR(COALESCE(tanggal_masuk, created_at), 1, 10) <= ?",
+        [endOfMonthStr]
       );
       final totalTenant = (totalTenantResult.first['count'] as int?) ?? 0;
 
-      // Tenant aktif
+      // Tenant aktif yang masuk pada atau sebelum akhir bulan tersebut
       final aktifResult = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM users WHERE role = 'tenant' AND is_active = 1",
+        "SELECT COUNT(*) as count FROM users WHERE role = 'tenant' AND is_active = 1 AND SUBSTR(COALESCE(tanggal_masuk, created_at), 1, 10) <= ?",
+        [endOfMonthStr]
       );
       final tenantAktif = (aktifResult.first['count'] as int?) ?? 0;
 
-      // Pendapatan bulan ini (uang yang masuk bulan ini, atau tagihan bulan ini jika paid_at kosong)
+      // Pendapatan bulan (uang yang masuk bulan ini, atau tagihan yang dibuat bulan ini jika paid_at kosong)
       final pendapatanResult = await db.rawQuery(
-        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND (paid_at LIKE ? OR (paid_at IS NULL AND bulan = ?))",
+        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND (paid_at LIKE ? OR (paid_at IS NULL AND SUBSTR(created_at, 1, 7) = ?))",
         ['$bulanIni%', bulanIni],
       );
       final pendapatanBulanIni = (pendapatanResult.first['total'] as int?) ?? 0;
 
-      // Tagihan pending
+      // Tagihan pending (dibuat di bulan ini)
       final pendingResult = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM payments WHERE status = 'pending' AND bulan = ?",
+        "SELECT COUNT(*) as count FROM payments WHERE status = 'pending' AND SUBSTR(created_at, 1, 7) = ?",
         [bulanIni],
       );
       final tagihantPending = (pendingResult.first['count'] as int?) ?? 0;
+
+      // Unpaid trend (all unpaid untuk tagihan yang dibuat di bulan ini)
+      final unpaidResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM payments WHERE status != 'paid' AND SUBSTR(created_at, 1, 7) = ?",
+        [bulanIni],
+      );
+      final tagihanUnpaid = (unpaidResult.first['count'] as int?) ?? 0;
 
       return {
         'total_tenant': totalTenant,
@@ -649,6 +662,7 @@ class DatabaseHelper {
         'total_kamar': AppConstants.ROOM_LABELS.length,
         'pendapatan_bulan_ini': pendapatanBulanIni,
         'tagihan_pending': tagihantPending,
+        'tagihan_unpaid': tagihanUnpaid,
         'bulan': bulanIni,
       };
     } catch (e) {
@@ -656,11 +670,29 @@ class DatabaseHelper {
         'total_tenant': 0,
         'tenant_aktif': 0,
         'tenant_nonaktif': 0,
+        'total_kamar': AppConstants.ROOM_LABELS.length,
         'pendapatan_bulan_ini': 0,
         'tagihan_pending': 0,
+        'tagihan_unpaid': 0,
         'bulan': '',
       };
     }
+  }
+
+  /// Statistik: Total pendapatan bulan ini (dari payment yang lunas) beserta perubahan dari bulan lalu
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    final now = DateTime.now();
+    final previousMonth = DateTime(now.year, now.month - 1);
+
+    final currentStats = await getStatsForMonth(now);
+    final previousStats = await getStatsForMonth(previousMonth);
+
+    return {
+      ...currentStats,
+      'diff_pendapatan': (currentStats['pendapatan_bulan_ini'] as int) - (previousStats['pendapatan_bulan_ini'] as int),
+      'diff_tenant_aktif': (currentStats['tenant_aktif'] as int) - (previousStats['tenant_aktif'] as int),
+      'diff_tenant_nonaktif': (currentStats['tenant_nonaktif'] as int) - (previousStats['tenant_nonaktif'] as int),
+    };
   }
 
   Future<PaymentModel?> getLatestPayment(int userId) async {
@@ -868,8 +900,182 @@ class DatabaseHelper {
     }
   }
 
-  // ─── Utility ───────────────────────────────────────────────────────────────
+  // ─── NEW METHODS FOR ADMIN STATISTICS ──────────────────────────────────────
 
+  Future<Map<String, dynamic>> getMonthlyStats(String yearMonth) async {
+    try {
+      final db = await database;
+      
+      // Revenue
+      final revResult = await db.rawQuery(
+        "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'paid' AND bulan = ?",
+        [yearMonth]
+      );
+      final pendapatan = (revResult.first['total'] as int?) ?? 0;
+
+      // Active & Inactive Tenants (based on end of that month)
+      final date = DateTime.tryParse('$yearMonth-01') ?? DateTime.now();
+      final nextMonth = DateTime(date.year, date.month + 1, 1);
+      final lastDay = nextMonth.subtract(const Duration(days: 1));
+      final endOfMonthStr = '${lastDay.year}-${lastDay.month.toString().padLeft(2, '0')}-${lastDay.day.toString().padLeft(2, '0')}';
+      
+      final aktifResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM users WHERE role = 'tenant' AND is_active = 1 AND SUBSTR(COALESCE(tanggal_masuk, created_at), 1, 10) <= ?",
+        [endOfMonthStr]
+      );
+      final tenantAktif = (aktifResult.first['count'] as int?) ?? 0;
+      final tenantNonaktif = (AppConstants.ROOM_LABELS.length - tenantAktif).clamp(0, AppConstants.ROOM_LABELS.length);
+
+      // Unpaid
+      final unpaidResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM payments WHERE status != 'paid' AND bulan = ?",
+        [yearMonth]
+      );
+      final unpaid = (unpaidResult.first['count'] as int?) ?? 0;
+
+      final occupancyRate = AppConstants.ROOM_LABELS.isNotEmpty ? (tenantAktif / AppConstants.ROOM_LABELS.length) * 100 : 0.0;
+
+      return {
+        'pendapatan': pendapatan,
+        'tenant_aktif': tenantAktif,
+        'tenant_nonaktif': tenantNonaktif,
+        'tagihan_unpaid': unpaid,
+        'occupancy_rate': occupancyRate,
+        'bulan': yearMonth,
+      };
+    } catch (e) {
+      return {
+        'pendapatan': 0, 'tenant_aktif': 0, 'tenant_nonaktif': 0,
+        'tagihan_unpaid': 0, 'occupancy_rate': 0.0, 'bulan': yearMonth,
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getMonthlyComparison(String currentMonth, String previousMonth) async {
+    final curr = await getMonthlyStats(currentMonth);
+    final prev = await getMonthlyStats(previousMonth);
+    return {
+      'current_revenue': curr['pendapatan'],
+      'previous_revenue': prev['pendapatan'],
+      'diff_revenue': (curr['pendapatan'] as int) - (prev['pendapatan'] as int),
+      'current_active_tenants': curr['tenant_aktif'],
+      'previous_active_tenants': prev['tenant_aktif'],
+      'diff_active_tenants': (curr['tenant_aktif'] as int) - (prev['tenant_aktif'] as int),
+      'current_unpaid': curr['tagihan_unpaid'],
+      'previous_unpaid': prev['tagihan_unpaid'],
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getMonthlyTrendData(int monthsBack, [String? endYearMonth]) async {
+    List<Map<String, dynamic>> trend = [];
+    final endDate = endYearMonth != null ? (DateTime.tryParse('$endYearMonth-01') ?? DateTime.now()) : DateTime.now();
+    for (int i = monthsBack - 1; i >= 0; i--) {
+      final m = DateTime(endDate.year, endDate.month - i);
+      final ym = '${m.year}-${m.month.toString().padLeft(2, '0')}';
+      final stats = await getMonthlyStats(ym);
+      trend.add({
+        'bulan': ym,
+        'revenue': stats['pendapatan'],
+        'active_tenants': stats['tenant_aktif'],
+        'unpaid_count': stats['tagihan_unpaid'],
+        'empty_rooms': stats['tenant_nonaktif']
+      });
+    }
+    return trend;
+  }
+
+  Future<List<PaymentModel>> getUnpaidPaymentsByMonth(String yearMonth) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT p.*, u.nama_lengkap as user_name, u.nomor_kamar as nomor_kamar 
+      FROM payments p 
+      JOIN users u ON p.user_id = u.id 
+      WHERE p.status != 'paid' AND SUBSTR(p.created_at, 1, 7) <= ?
+    ''', [yearMonth]);
+    return result.map((map) => PaymentModel.fromMap(map)).toList();
+  }
+
+  Future<double> getOccupancyRateForMonth(String yearMonth) async {
+    final stats = await getMonthlyStats(yearMonth);
+    return stats['occupancy_rate'] as double;
+  }
+
+  Future<List<String>> getAvailableMonths() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT DISTINCT bulan FROM payments ORDER BY bulan DESC LIMIT 12');
+    List<String> months = result.map((e) => e['bulan'] as String).toList();
+    if (months.isEmpty) {
+      final now = DateTime.now();
+      months.add('${now.year}-${now.month.toString().padLeft(2, "0")}');
+    }
+    return months;
+  }
+
+  // ─── UNPAID PAYMENTS & DASHBOARD ──────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getUnpaidPaymentsForCurrentMonth() async {
+    final now = DateTime.now();
+    final ym = '${now.year}-${now.month.toString().padLeft(2, "0")}';
+    return getUnpaidPaymentsByFilter(ym, 'all');
+  }
+
+  Future<List<Map<String, dynamic>>> getUnpaidPaymentsByFilter(String yearMonth, String filter) async {
+    final db = await database;
+    String statusCond = "p.status != 'paid'";
+    
+    if (filter == 'overdue') {
+      statusCond = "p.status = 'pending' AND p.created_at < date('now', '-30 days')";
+    } else if (filter == 'pending') {
+      statusCond = "p.status = 'pending' AND p.created_at >= date('now', '-30 days')";
+    }
+
+    final result = await db.rawQuery('''
+      SELECT 
+        p.user_id, 
+        u.nama_lengkap, 
+        u.nomor_kamar, 
+        p.amount, 
+        p.status, 
+        p.bulan,
+        CAST(julianday('now') - julianday(p.created_at) AS INTEGER) as hari_overdue
+      FROM payments p 
+      JOIN users u ON p.user_id = u.id 
+      WHERE $statusCond AND SUBSTR(p.created_at, 1, 7) <= ?
+      ORDER BY 
+        CASE WHEN CAST(julianday('now') - julianday(p.created_at) AS INTEGER) >= 30 THEN 0 ELSE 1 END,
+        p.created_at ASC
+    ''', [yearMonth]);
+    
+    return List<Map<String, dynamic>>.from(result);
+  }
+
+  Future<Map<String, dynamic>> getTenantDetailForPayment(int userId) async {
+    final db = await database;
+    final userResult = await db.query('users', where: 'id = ?', whereArgs: [userId], limit: 1);
+    if (userResult.isEmpty) return {};
+    
+    final user = Map<String, dynamic>.from(userResult.first);
+    final paymentsResult = await db.rawQuery('''
+      SELECT bulan, amount, status, paid_at 
+      FROM payments 
+      WHERE user_id = ? 
+      ORDER BY bulan DESC 
+      LIMIT 6
+    ''', [userId]);
+    
+    user['payment_history'] = List<Map<String, dynamic>>.from(paymentsResult);
+    return user;
+  }
+
+  Future<int> getUnpaidCount() async {
+    final db = await database;
+    final now = DateTime.now();
+    final ym = '${now.year}-${now.month.toString().padLeft(2, "0")}';
+    final result = await db.rawQuery("SELECT COUNT(*) as count FROM payments WHERE status != 'paid' AND SUBSTR(created_at, 1, 7) <= ?", [ym]);
+    return (result.first['count'] as int?) ?? 0;
+  }
+
+  // ─── Utility ───────────────────────────────────────────────────────────────
   Future<void> close() async {
     final db = await database;
     await db.close();
